@@ -196,33 +196,41 @@ export default function App() {
 
       {splitBill && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto">
-          <div className="bg-white rounded-lg p-6 w-[90%] max-w-2xl">
-            <h2 className="text-xl font-bold mb-4">تقسيم الفاتورة</h2>
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[90%] max-w-3xl">
+            <h2 className="text-2xl font-bold text-purple-700 mb-6 border-b pb-2">
+              🧾 تقسيم الفاتورة
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative">
-                <label className="block mb-1">التاريخ</label>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  📅 التاريخ
+                </label>
                 <Datepicker
                   asSingle
                   value={billDate}
                   onChange={setBillDate}
                   displayFormat="DD/MM/YYYY"
-                  inputClassName="w-full border p-2 rounded text-right pl-10"
-                  toggleClassName="absolute left-0 h-full px-3 text-gray-400"
+                  inputClassName="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded text-right pl-10"
+                  toggleClassName="absolute left-0 h-full px-3 text-purple-500"
                 />
               </div>
               <div>
-                <label className="block mb-1">اسم المقهى</label>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  🏪 اسم المقهى
+                </label>
                 <input
                   type="text"
-                  className="w-full border p-2 rounded"
+                  className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded"
                   value={shopName}
                   onChange={(e) => setShopName(e.target.value)}
                 />
               </div>
               <div>
-                <label className="block mb-1">الدافع</label>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  💸 الدافع
+                </label>
                 <select
-                  className="w-full border p-2 rounded"
+                  className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded"
                   value={payerId}
                   onChange={(e) => setPayerId(e.target.value)}
                 >
@@ -235,55 +243,63 @@ export default function App() {
                 </select>
               </div>
               <div>
-                <label className="block mb-1">إجمالي الفاتورة</label>
+                <label className="block mb-1 text-sm font-medium text-gray-700">
+                  💰 إجمالي الفاتورة
+                </label>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
-                  className="w-full border p-2 rounded"
+                  className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded"
                   value={billAmount}
                   onChange={(e) => setBillAmount(e.target.value)}
                 />
               </div>
             </div>
             <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-2">المشاركون</h3>
-              {contributions.map((c, idx) => {
-                const p = participants.find((p) => p.id === c.id);
-                return (
-                  <div
-                    key={c.id}
-                    className="flex justify-between items-center border p-2 rounded mb-2"
-                  >
-                    <span>{p?.name}</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="w-32 border p-1 rounded"
-                      value={c.amount}
-                      onChange={(e) => {
-                        const updated = [...contributions];
-                        updated[idx].amount = e.target.value;
-                        setContributions(updated);
-                      }}
-                    />
-                  </div>
-                );
-              })}
+              <h3 className="text-lg font-semibold text-purple-700 mb-3">
+                👥 المشاركون
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {contributions.map((c, idx) => {
+                  const p = participants.find((p) => p.id === c.id);
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex justify-between items-center border border-purple-200 bg-purple-50 rounded-lg px-4 py-2 shadow-sm"
+                    >
+                      <span className="font-medium text-gray-800">
+                        {p?.name}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-24 border border-purple-300 focus:ring-2 focus:ring-purple-400 p-1 rounded text-right"
+                        value={c.amount}
+                        onChange={(e) => {
+                          const updated = [...contributions];
+                          updated[idx].amount = e.target.value;
+                          setContributions(updated);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div className="flex justify-end gap-2 mt-4">
+            <div className="flex justify-end gap-2 mt-6">
               <button
-                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
                 onClick={() => setSplitBill(false)}
               >
                 إلغاء
               </button>
               <button
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
                 onClick={handleSplitBillSubmit}
               >
-                حفظ
+                💾 حفظ
               </button>
             </div>
           </div>
