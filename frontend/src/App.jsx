@@ -345,8 +345,9 @@ export default function App() {
                   ) : (
                     paged.map((tx, i) => (
                       <tr
-                        key={i}
-                        className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                        className={`animate-fade-in ${
+                          i % 2 === 0 ? "bg-white" : "bg-gray-50"
+                        }`}
                       >
                         <td className="p-2 border-b">{tx.date}</td>
                         <td className="p-2 border-b">{tx.name}</td>
