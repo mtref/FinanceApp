@@ -10,7 +10,8 @@
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-tailwindcss-datepicker": "^1.7.2",
-    "lucide-react": "^0.327.0"
+    "lucide-react": "^0.327.0",
+    "framer-motion": "^10.16.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",

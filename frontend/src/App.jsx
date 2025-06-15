@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Datepicker from "react-tailwindcss-datepicker";
 import { XCircle, Loader } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function App() {
   const [participants, setParticipants] = useState([]);
@@ -194,43 +195,245 @@ export default function App() {
   }
 
   return (
-    <div
-      dir="rtl"
-      className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-10 px-4 font-tajawal"
-    >
-      <div className="max-w-5xl mx-auto space-y-6">
-        <h1 className="text-4xl font-extrabold text-center text-purple-700 mb-10">
-          تطبيق إدارة المشاركين
-        </h1>
+    <>
+      <div
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        dir="rtl"
+        className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-10 px-4 font-zain"
+      >
+        <div className="max-w-5xl mx-auto space-y-6">
+          <h1 className="text-4xl font-extrabold text-center text-purple-700 mb-10">
+            تطبيق إدارة المشاركين
+          </h1>
 
-        <div className="flex justify-center gap-4 mb-8">
-          <button
-            className="bg-green-600 text-white px-5 py-2 rounded-xl hover:bg-green-700 shadow"
-            onClick={() => setAdding(true)}
-          >
-            ➕ إضافة مشارك
-          </button>
-          <button
-            className="bg-purple-600 text-white px-5 py-2 rounded-xl hover:bg-purple-700 shadow"
-            onClick={() => setSplitBill(true)}
-          >
-            🧾 تقسيم الفاتورة
-          </button>
-        </div>
+          <div className="flex justify-center gap-4 mb-8">
+            <button
+              className="bg-green-600 text-white px-5 py-2 rounded-xl hover:bg-green-700 shadow"
+              onClick={() => setAdding(true)}
+            >
+              ➕ إضافة مشارك
+            </button>
+            <button
+              className="bg-purple-600 text-white px-5 py-2 rounded-xl hover:bg-purple-700 shadow"
+              onClick={() => setSplitBill(true)}
+            >
+              🧾 تقسيم الفاتورة
+            </button>
+          </div>
 
-        <div className="flex justify-center mb-10">
-          <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-purple-500">
-            <h2 className="text-lg font-bold text-gray-700 mb-2">
-              إجمالي الرصيد الإيجابي
+          <div className="flex justify-center mb-10">
+            <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-purple-500">
+              <h2 className="text-lg font-bold text-gray-700 mb-2">
+                إجمالي الرصيد الإيجابي
+              </h2>
+              <p className="text-2xl text-green-600 font-bold">
+                {totalPositiveBalance.toFixed(2)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-12">
+            <AnimatePresence>
+              {participants.map((p, index) => (
+                <motion.div
+                  key={p.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05, duration: 0.4 }}
+                  className={`rounded-xl shadow-md p-4 border-r-2 ${
+                    p.balance < 0
+                      ? "border-red-500 bg-red-50"
+                      : "border-green-500 bg-green-50"
+                  }`}
+                >
+                  <h2 className="text-xl font-bold mb-1">{p.name}</h2>
+                  <p className="text-lg">
+                    الرصيد:
+                    <span
+                      className={
+                        p.balance < 0 ? "text-red-600" : "text-green-600"
+                      }
+                    >
+                      {p.balance}
+                    </span>
+                  </p>
+                  <div className="flex justify-between">
+                    <button
+                      className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
+                      onClick={() => setCreditId(p.id)}
+                    >
+                      💰 رصيد
+                    </button>
+                    <button
+                      className="text-red-500 text-sm font-bold hover:underline"
+                      onClick={() => setDeleteId(p.id)}
+                    >
+                      حذف
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-md p-4 mt-6">
+            <h2 className="ext-lg font-bold text-gray-700 mb-2">
+              سجل المعاملات
             </h2>
-            <p className="text-2xl text-green-600 font-bold">
-              {totalPositiveBalance.toFixed(2)}
-            </p>
+
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
+              <input
+                type="text"
+                placeholder="بحث بالاسم"
+                className="px-3 py-2 rounded border w-full md:w-1/3"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+              />
+              <Datepicker
+                value={filterDateValue}
+                asSingle={true}
+                useRange={false}
+                onChange={handleFilterDateChange}
+                placeholder="تصفية بالتاريخ"
+                // Add padding to the right of the input to make space for the icon
+                inputClassName="px-3 py-2 rounded border pr-8" // pr-8 is padding-right: 2rem
+                displayFormat="YYYY-MM-DD"
+              />
+              {filterDate && (
+                <button
+                  onClick={() => handleFilterDateChange({ startDate: null })}
+                  // Positioning classes to place the button inside the input area
+                  className="absolute top-1/2 right-2 -translate-y-1/2"
+                >
+                  <XCircle className="text-red-500 w-5 h-5" />
+                </button>
+              )}
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="px-3 py-2 rounded border w-full md:w-32"
+              >
+                <option value={10}>10 نتائج</option>
+                <option value={30}>30 نتيجة</option>
+                <option value={100}>100 نتيجة</option>
+              </select>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-right border-collapse">
+                <thead className="bg-purple-100 text-purple-800 font-bold">
+                  <tr>
+                    <th className="p-2 border-b">التاريخ</th>
+                    <th className="p-2 border-b">الاسم</th>
+                    <th className="p-2 border-b">المبلغ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="text-center py-4 text-gray-500"
+                      >
+                        لا توجد معاملات مطابقة
+                      </td>
+                    </tr>
+                  ) : (
+                    paged.map((tx, i) => (
+                      <tr
+                        key={i}
+                        className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                      >
+                        <td className="p-2 border-b">{tx.date}</td>
+                        <td className="p-2 border-b">{tx.name}</td>
+                        <td
+                          className={`p-2 border-b font-semibold ${
+                            tx.amount < 0 ? "text-red-600" : "text-green-600"
+                          }`}
+                        >
+                          {tx.amount < 0
+                            ? `- ${Math.abs(tx.amount)}`
+                            : `+ ${tx.amount}`}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-3 mt-4">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`px-3 py-1 rounded ${
+                      currentPage === i + 1
+                        ? "bg-purple-600 text-white"
+                        : "bg-gray-200 text-gray-800"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-
+      </div>
+      <AnimatePresence>
+        {adding && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          >
+            <div className="bg-white rounded-xl p-6 w-96 shadow-2xl border-t-4 border-green-500">
+              <h2 className="text-2xl font-bold text-green-600 mb-4 border-b pb-2">
+                ➕ إضافة مشارك جديد
+              </h2>
+              <input
+                type="text"
+                className="w-full border border-green-300 focus:ring-2 focus:ring-green-400 p-2 rounded mb-4"
+                value={name}
+                placeholder="اكتب اسم المشارك"
+                onChange={(e) => setName(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+                  onClick={() => setAdding(false)}
+                >
+                  إلغاء
+                </button>
+                <button
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                  onClick={addParticipant}
+                >
+                  حفظ
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {splitBill && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto"
+          >
             <div className="bg-white rounded-xl shadow-2xl p-6 w-[90%] max-w-3xl">
               <h2 className="text-2xl font-bold text-purple-700 mb-6 border-b pb-2">
                 🧾 تقسيم الفاتورة
@@ -338,42 +541,19 @@ export default function App() {
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
-        {adding && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-            <div className="bg-white rounded-xl p-6 w-96 shadow-2xl border-t-4 border-green-500">
-              <h2 className="text-2xl font-bold text-green-600 mb-4 border-b pb-2">
-                ➕ إضافة مشارك جديد
-              </h2>
-              <input
-                type="text"
-                className="w-full border border-green-300 focus:ring-2 focus:ring-green-400 p-2 rounded mb-4"
-                value={name}
-                placeholder="اكتب اسم المشارك"
-                onChange={(e) => setName(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
-                  onClick={() => setAdding(false)}
-                >
-                  إلغاء
-                </button>
-                <button
-                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                  onClick={addParticipant}
-                >
-                  حفظ
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
+      <AnimatePresence>
         {creditId && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+          >
             <div className="bg-white rounded p-6 w-80">
               <h3 className="mb-4 text-lg">
                 إضافة رصيد لـ{" "}
@@ -413,11 +593,19 @@ export default function App() {
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
 
+      <AnimatePresence>
         {deleteId && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+          >
             <div className="bg-white rounded p-6 w-80">
               <h3 className="mb-4 text-lg">تأكيد الحذف</h3>
               <p className="mb-2 text-sm text-gray-700">
@@ -445,149 +633,9 @@ export default function App() {
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
-
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-12">
-          {participants.map((p) => (
-            <div
-              key={p.id}
-              className={`rounded-xl shadow-md p-4 border-r-2 ${
-                p.balance < 0
-                  ? "border-red-500 bg-red-50"
-                  : "border-green-500 bg-green-50"
-              }`}
-            >
-              <h2 className="text-xl font-bold mb-1">{p.name}</h2>
-              <p className="text-lg">
-                الرصيد:{" "}
-                <span
-                  className={p.balance < 0 ? "text-red-600" : "text-green-600"}
-                >
-                  {p.balance}
-                </span>
-              </p>
-              <div className="flex justify-between">
-                <button
-                  className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
-                  onClick={() => setCreditId(p.id)}
-                >
-                  💰 رصيد
-                </button>
-                <button
-                  className="text-red-500 text-sm font-bold hover:underline"
-                  onClick={() => setDeleteId(p.id)}
-                >
-                  حذف
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-md p-4 mt-6">
-          <h2 className="ext-lg font-bold text-gray-700 mb-2">سجل المعاملات</h2>
-
-          {/* Filters */}
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
-            <input
-              type="text"
-              placeholder="بحث بالاسم"
-              className="px-3 py-2 rounded border w-full md:w-1/3"
-              value={filterName}
-              onChange={(e) => setFilterName(e.target.value)}
-            />
-            <Datepicker
-              value={filterDateValue}
-              asSingle={true}
-              useRange={false}
-              onChange={handleFilterDateChange}
-              placeholder="تصفية بالتاريخ"
-              // Add padding to the right of the input to make space for the icon
-              inputClassName="px-3 py-2 rounded border pr-8" // pr-8 is padding-right: 2rem
-              displayFormat="YYYY-MM-DD"
-            />
-            {filterDate && (
-              <button
-                onClick={() => handleFilterDateChange({ startDate: null })}
-                // Positioning classes to place the button inside the input area
-                className="absolute top-1/2 right-2 -translate-y-1/2"
-              >
-                <XCircle className="text-red-500 w-5 h-5" />
-              </button>
-            )}
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="px-3 py-2 rounded border w-full md:w-32"
-            >
-              <option value={10}>10 نتائج</option>
-              <option value={30}>30 نتيجة</option>
-              <option value={100}>100 نتيجة</option>
-            </select>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-right border-collapse">
-              <thead className="bg-purple-100 text-purple-800 font-bold">
-                <tr>
-                  <th className="p-2 border-b">التاريخ</th>
-                  <th className="p-2 border-b">الاسم</th>
-                  <th className="p-2 border-b">المبلغ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paged.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="text-center py-4 text-gray-500">
-                      لا توجد معاملات مطابقة
-                    </td>
-                  </tr>
-                ) : (
-                  paged.map((tx, i) => (
-                    <tr
-                      key={i}
-                      className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                    >
-                      <td className="p-2 border-b">{tx.date}</td>
-                      <td className="p-2 border-b">{tx.name}</td>
-                      <td
-                        className={`p-2 border-b font-semibold ${
-                          tx.amount < 0 ? "text-red-600" : "text-green-600"
-                        }`}
-                      >
-                        {tx.amount < 0
-                          ? `- ${Math.abs(tx.amount)}`
-                          : `+ ${tx.amount}`}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-3 mt-4">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`px-3 py-1 rounded ${
-                    currentPage === i + 1
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-200 text-gray-800"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      </AnimatePresence>
+    </>
   );
 }
