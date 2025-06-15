@@ -4,6 +4,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 COPY frontend/ ./
+RUN chmod +x node_modules/.bin/vite
 RUN npm run build
 
 # Stage 2: build backend container
