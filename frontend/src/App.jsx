@@ -1,6 +1,7 @@
 // تحديث App.jsx - إصلاح خطأ 400 أثناء الخصم من المشاركين
 import React, { useState, useEffect, useMemo } from "react";
 import Datepicker from "react-tailwindcss-datepicker";
+import { XCircle } from "lucide-react";
 
 export default function App() {
   const [participants, setParticipants] = useState([]);
@@ -136,8 +137,14 @@ export default function App() {
   };
 
   const handleFilterDateChange = (newValue) => {
-    setFilterDateValue(newValue);
-    setFilterDate(newValue.startDate || null);
+    if (!newValue.startDate) {
+      setFilterDate(null);
+      setFilterDateValue({ startDate: null, endDate: null });
+    } else {
+      const selected = new Date(newValue.startDate).toISOString().split("T")[0];
+      setFilterDateValue({ startDate: selected, endDate: selected });
+      setFilterDate(selected);
+    }
     setCurrentPage(1);
   };
 
@@ -167,7 +174,7 @@ export default function App() {
   return (
     <div
       dir="rtl"
-      className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-10 px-4font-tajawal"
+      className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-10 px-4 font-tajawal"
     >
       <div className="max-w-5xl mx-auto space-y-6">
         <h1 className="text-4xl font-extrabold text-center text-purple-700 mb-10">
@@ -456,127 +463,107 @@ export default function App() {
           ))}
         </div>
 
-        <div className="bg-white p-4 rounded shadow">
-          <div className="flex items-center justify-between mb-4 flex-wrap">
-            <h2 className="text-xl font-semibold">سجل المعاملات</h2>
-            <div className="flex gap-2 items-center">
-              <div className="relative">
-                <Datepicker
-                  asSingle
-                  useRange={false}
-                  value={filterDateValue}
-                  onChange={handleFilterDateChange}
-                  displayFormat="DD/MM/YYYY"
-                  inputClassName="border p-2 rounded text-right pl-10"
-                  toggleClassName="absolute left-0 h-full px-3 text-gray-400 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
-                  placeholder="تصفية بالتاريخ"
-                />
-              </div>
-              <input
-                type="text"
-                placeholder="بحث بالاسم"
-                className="border p-2 rounded"
-                value={filterName}
-                onChange={(e) => {
-                  setFilterName(e.target.value);
-                  setCurrentPage(1);
-                }}
-              />
-              <select
-                className="border p-2 rounded"
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(+e.target.value);
-                  setCurrentPage(1);
-                }}
+        <div className="bg-white rounded-2xl shadow-md p-4 mt-6">
+          <h2 className="ext-lg font-bold text-gray-700 mb-2">سجل المعاملات</h2>
+
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
+            <input
+              type="text"
+              placeholder="بحث بالاسم"
+              className="px-3 py-2 rounded border w-full md:w-1/3"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+            />
+            <Datepicker
+              value={filterDateValue}
+              asSingle={true}
+              useRange={false}
+              onChange={handleFilterDateChange}
+              placeholder="تصفية بالتاريخ"
+              // Add padding to the right of the input to make space for the icon
+              inputClassName="px-3 py-2 rounded border pr-8" // pr-8 is padding-right: 2rem
+              displayFormat="YYYY-MM-DD"
+            />
+            {filterDate && (
+              <button
+                onClick={() => handleFilterDateChange({ startDate: null })}
+                // Positioning classes to place the button inside the input area
+                className="absolute top-1/2 right-2 -translate-y-1/2"
               >
-                {[5, 10, 30, 100].map((n) => (
-                  <option key={n} value={n}>
-                    {n} لكل صفحة
-                  </option>
-                ))}
-              </select>
-            </div>
+                <XCircle className="text-red-500 w-5 h-5" />
+              </button>
+            )}
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className="px-3 py-2 rounded border w-full md:w-32"
+            >
+              <option value={10}>10 نتائج</option>
+              <option value={30}>30 نتيجة</option>
+              <option value={100}>100 نتيجة</option>
+            </select>
           </div>
 
+          {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-sm table-auto border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="p-2 text-right font-semibold">التاريخ</th>
-                  <th className="p-2 text-right font-semibold">الاسم</th>
-                  <th className="p-2 text-right font-semibold">المبلغ</th>
+            <table className="w-full text-sm text-right border-collapse">
+              <thead className="bg-purple-100 text-purple-800 font-bold">
+                <tr>
+                  <th className="p-2 border-b">التاريخ</th>
+                  <th className="p-2 border-b">الاسم</th>
+                  <th className="p-2 border-b">المبلغ</th>
                 </tr>
               </thead>
               <tbody>
-                {paged.length ? (
+                {paged.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="text-center py-4 text-gray-500">
+                      لا توجد معاملات مطابقة
+                    </td>
+                  </tr>
+                ) : (
                   paged.map((tx, i) => (
-                    <tr key={tx.id || i} className="border-b border-gray-200">
-                      <td className="p-2 text-right">{tx.date}</td>
-                      <td className="p-2 text-right">{tx.name}</td>
+                    <tr
+                      key={i}
+                      className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="p-2 border-b">{tx.date}</td>
+                      <td className="p-2 border-b">{tx.name}</td>
                       <td
-                        className={`p-2 text-right font-medium ${
-                          tx.amount > 0 ? "text-green-600" : "text-red-600"
+                        className={`p-2 border-b font-semibold ${
+                          tx.amount < 0 ? "text-red-600" : "text-green-600"
                         }`}
                       >
-                        {tx.amount.toFixed(2)}
+                        {tx.amount < 0
+                          ? `- ${Math.abs(tx.amount)}`
+                          : `+ ${tx.amount}`}
                       </td>
                     </tr>
                   ))
-                ) : (
-                  <tr>
-                    <td colSpan="3" className="p-4 text-center text-gray-500">
-                      — لا توجد معاملات —
-                    </td>
-                  </tr>
                 )}
               </tbody>
             </table>
           </div>
 
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-sm text-gray-600">
-              عرض{" "}
-              {filtered.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-
-              {Math.min(currentPage * itemsPerPage, filtered.length)} من{" "}
-              {filtered.length}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-3 mt-4">
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i + 1)}
+                  className={`px-3 py-1 rounded ${
+                    currentPage === i + 1
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-200 text-gray-800"
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
             </div>
-            <div className="flex gap-1">
-              <button
-                className="px-3 py-1 rounded border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
-                الأول
-              </button>
-              <button
-                className="px-3 py-1 rounded border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                disabled={currentPage === 1}
-              >
-                السابق
-              </button>
-              <span className="px-3 py-1 text-gray-700">
-                الصفحة {currentPage} من {totalPages}
-              </span>
-              <button
-                className="px-3 py-1 rounded border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(p + 1, totalPages))
-                }
-                disabled={currentPage >= totalPages}
-              >
-                التالي
-              </button>
-              <button
-                className="px-3 py-1 rounded border hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage >= totalPages}
-              >
-                الأخير
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
