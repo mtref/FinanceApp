@@ -530,8 +530,7 @@ export default function App() {
                   <input
                     type="number"
                     min="0"
-                    step="0.01"
-                    className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded"
+                    className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     value={billAmount}
                     onChange={(e) => setBillAmount(e.target.value)}
                   />
@@ -555,8 +554,7 @@ export default function App() {
                         <input
                           type="number"
                           min="0"
-                          step="0.01"
-                          className="w-24 border border-purple-300 focus:ring-2 focus:ring-purple-400 p-1 rounded text-right"
+                          className="w-24 border border-purple-300 focus:ring-2 focus:ring-purple-400 p-1 rounded text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           value={c.amount}
                           onChange={(e) => {
                             const updated = [...contributions];
@@ -615,8 +613,7 @@ export default function App() {
               <input
                 type="number"
                 min="0"
-                step="0.01"
-                className="w-full border p-2 mb-4 rounded"
+                className="w-full border p-2 mb-4 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 placeholder="المبلغ"
                 value={creditAmount}
                 onChange={(e) => setCreditAmount(e.target.value)}
