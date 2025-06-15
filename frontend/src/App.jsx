@@ -52,9 +52,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    setLoading(true); // 👈 move this out to run immediately
     const fetchData = async () => {
       try {
-        setLoading(true);
         await Promise.all([loadParticipants(), loadAllTx()]);
       } catch (error) {
         console.error("❌ Error loading data:", error);
