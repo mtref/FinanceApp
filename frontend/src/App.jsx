@@ -308,23 +308,26 @@ export default function App() {
 
       {adding && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 w-80">
-            <h2 className="text-xl mb-4">أدخل اسم المشارك</h2>
+          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl border-t-4 border-green-500">
+            <h2 className="text-2xl font-bold text-green-600 mb-4 border-b pb-2">
+              ➕ إضافة مشارك جديد
+            </h2>
             <input
               type="text"
-              className="w-full border p-2 mb-4 rounded"
+              className="w-full border border-green-300 focus:ring-2 focus:ring-green-400 p-2 rounded mb-4"
               value={name}
+              placeholder="اكتب اسم المشارك"
               onChange={(e) => setName(e.target.value)}
             />
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
               <button
-                className="bg-gray-300 px-4 py-2 rounded mr-2 hover:bg-gray-400"
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
                 onClick={() => setAdding(false)}
               >
                 إلغاء
               </button>
               <button
-                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                 onClick={addParticipant}
               >
                 حفظ
