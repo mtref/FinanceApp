@@ -67,6 +67,22 @@ export default function App() {
     fetchData();
   }, []);
 
+  const handleCardClick = (name) => {
+    if (filterName === name) {
+      setFilterName("");
+      toast.info("تم إزالة الفلتر");
+    } else {
+      navigator.clipboard.writeText(name);
+      setFilterName(name);
+      toast.info(
+        <span>
+          فلترة السجل لـ
+          <span className="text-purple-600 font-semibold"> {name}</span>
+        </span>
+      );
+    }
+  };
+
   const handleSplitBillSubmit = async () => {
     const totalPaid = contributions.reduce(
       (sum, c) => sum + parseFloat(c.amount || 0),
@@ -284,6 +300,7 @@ export default function App() {
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05, duration: 0.4 }}
+                  onClick={() => handleCardClick(p.name)}
                   className={`rounded-xl shadow-md p-4 border-r-2 ${
                     p.balance < 0
                       ? "border-red-500 bg-red-50"
@@ -334,6 +351,13 @@ export default function App() {
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
               />
+              {filterName && (
+                <XCircle
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer hover:text-red-500"
+                  size={20}
+                  onClick={() => setFilterName("")}
+                />
+              )}
               <Datepicker
                 value={filterDateValue}
                 asSingle={true}
