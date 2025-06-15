@@ -1,11 +1,21 @@
-// تحديث App.jsx - ترجمة كاملة للعربية مع تأكيد حذف المشارك
+// تحديث App.jsx - إصلاح خطأ 400 أثناء الخصم من المشاركين
 import React, { useState, useEffect, useMemo } from "react";
 import Datepicker from "react-tailwindcss-datepicker";
 
 export default function App() {
   const [participants, setParticipants] = useState([]);
+  const [rawParticipants, setRawParticipants] = useState([]);
   const [name, setName] = useState("");
   const [adding, setAdding] = useState(false);
+  const [splitBill, setSplitBill] = useState(false);
+  const [billDate, setBillDate] = useState({
+    startDate: new Date().toISOString(),
+    endDate: new Date().toISOString(),
+  });
+  const [shopName, setShopName] = useState("");
+  const [payerId, setPayerId] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [contributions, setContributions] = useState([]);
   const [creditId, setCreditId] = useState(null);
   const [creditAmount, setCreditAmount] = useState("");
   const [creditDate, setCreditDate] = useState({
@@ -27,8 +37,13 @@ export default function App() {
 
   const loadParticipants = async () => {
     const res = await fetch("/api/participants");
-    setParticipants(await res.json());
+    const data = await res.json();
+    const active = data.filter((p) => !p.deleted); // ⬅️ استبعاد المحذوفين
+    setParticipants(active);
+    setRawParticipants(data); // ⬅️ كل المشاركين، نستخدمهم للمعاملات
+    setContributions(active.map((p) => ({ id: p.id, amount: "" })));
   };
+
   const loadAllTx = async () => {
     const res = await fetch("/api/transactions");
     setAllTx(await res.json());
@@ -38,6 +53,48 @@ export default function App() {
     loadParticipants();
     loadAllTx();
   }, []);
+
+  const handleSplitBillSubmit = async () => {
+    const totalPaid = contributions.reduce(
+      (sum, c) => sum + parseFloat(c.amount || 0),
+      0
+    );
+    if (parseFloat(billAmount) !== totalPaid) {
+      alert("يجب أن يكون إجمالي المدفوع من المشاركين مساوياً لإجمالي الفاتورة");
+      return;
+    }
+
+    const date = new Date(billDate.startDate).toISOString().split("T")[0];
+
+    try {
+      await fetch(`/api/participants/${payerId}/credit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: parseFloat(billAmount), date }),
+      });
+
+      for (const c of contributions) {
+        const value = parseFloat(c.amount);
+        if (!c.amount || isNaN(value) || value <= 0) continue;
+
+        await fetch(`/api/participants/${c.id}/credit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: -Math.abs(value), date }),
+        });
+      }
+
+      setSplitBill(false);
+      setShopName("");
+      setBillAmount("");
+      setPayerId("");
+      await loadAllTx();
+      await loadParticipants();
+    } catch (err) {
+      console.error("Error submitting bill split:", err);
+      alert("حدث خطأ أثناء الحفظ. الرجاء المحاولة لاحقاً.");
+    }
+  };
 
   const addParticipant = async () => {
     if (!name.trim()) return;
@@ -102,20 +159,136 @@ export default function App() {
     currentPage * itemsPerPage
   );
 
+  const totalPositiveBalance = participants.reduce(
+    (sum, p) => sum + (p.balance > 0 ? p.balance : 0),
+    0
+  );
+
   return (
     <div dir="rtl" className="min-h-screen bg-gray-100 p-6 font-sans">
       <h1 className="text-3xl font-bold text-center mb-6">
         تطبيق إدارة المشاركين
       </h1>
 
-      <div className="flex justify-center mb-6">
+      <div className="flex justify-center gap-4 mb-6">
         <button
           className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
           onClick={() => setAdding(true)}
         >
           إضافة مشارك
         </button>
+        <button
+          className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+          onClick={() => setSplitBill(true)}
+        >
+          تقسيم الفاتورة
+        </button>
       </div>
+
+      <div className="flex justify-center mb-8">
+        <div className="bg-white p-4 rounded shadow w-64 text-center">
+          <h2 className="text-lg font-semibold mb-2">إجمالي الرصيد الإيجابي</h2>
+          <p className="text-green-600 text-xl font-bold">
+            {totalPositiveBalance.toFixed(2)}
+          </p>
+        </div>
+      </div>
+
+      {splitBill && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto">
+          <div className="bg-white rounded-lg p-6 w-[90%] max-w-2xl">
+            <h2 className="text-xl font-bold mb-4">تقسيم الفاتورة</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="relative">
+                <label className="block mb-1">التاريخ</label>
+                <Datepicker
+                  asSingle
+                  value={billDate}
+                  onChange={setBillDate}
+                  displayFormat="DD/MM/YYYY"
+                  inputClassName="w-full border p-2 rounded text-right pl-10"
+                  toggleClassName="absolute left-0 h-full px-3 text-gray-400"
+                />
+              </div>
+              <div>
+                <label className="block mb-1">اسم المقهى</label>
+                <input
+                  type="text"
+                  className="w-full border p-2 rounded"
+                  value={shopName}
+                  onChange={(e) => setShopName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block mb-1">الدافع</label>
+                <select
+                  className="w-full border p-2 rounded"
+                  value={payerId}
+                  onChange={(e) => setPayerId(e.target.value)}
+                >
+                  <option value="">اختر مشاركًا</option>
+                  {participants.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block mb-1">إجمالي الفاتورة</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  className="w-full border p-2 rounded"
+                  value={billAmount}
+                  onChange={(e) => setBillAmount(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-2">المشاركون</h3>
+              {contributions.map((c, idx) => {
+                const p = participants.find((p) => p.id === c.id);
+                return (
+                  <div
+                    key={c.id}
+                    className="flex justify-between items-center border p-2 rounded mb-2"
+                  >
+                    <span>{p?.name}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="w-32 border p-1 rounded"
+                      value={c.amount}
+                      onChange={(e) => {
+                        const updated = [...contributions];
+                        updated[idx].amount = e.target.value;
+                        setContributions(updated);
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                className="bg-gray-300 px-4 py-2 rounded hover:bg-gray-400"
+                onClick={() => setSplitBill(false)}
+              >
+                إلغاء
+              </button>
+              <button
+                className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                onClick={handleSplitBillSubmit}
+              >
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {adding && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
