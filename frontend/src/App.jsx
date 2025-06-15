@@ -1,7 +1,7 @@
 // تحديث App.jsx - إصلاح خطأ 400 أثناء الخصم من المشاركين
 import React, { useState, useEffect, useMemo } from "react";
 import Datepicker from "react-tailwindcss-datepicker";
-import { XCircle } from "lucide-react";
+import { XCircle, Loader } from "lucide-react";
 
 export default function App() {
   const [participants, setParticipants] = useState([]);
@@ -35,7 +35,7 @@ export default function App() {
     startDate: null,
     endDate: null,
   });
-
+  const [loading, setLoading] = useState(true);
   const loadParticipants = async () => {
     const res = await fetch("/api/participants");
     const data = await res.json();
@@ -51,8 +51,17 @@ export default function App() {
   };
 
   useEffect(() => {
-    loadParticipants();
-    loadAllTx();
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([loadParticipants(), loadAllTx()]);
+      } catch (error) {
+        console.error("❌ Error loading data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
   const handleSplitBillSubmit = async () => {
@@ -170,6 +179,19 @@ export default function App() {
     (sum, p) => sum + (p.balance > 0 ? p.balance : 0),
     0
   );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-purple-50">
+        <div className="text-center animate-pulse">
+          <Loader className="w-16 h-16 text-purple-600 mx-auto animate-spin" />
+          <p className="mt-4 text-xl text-purple-700 font-semibold">
+            جاري تحميل البيانات...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
