@@ -37,7 +37,8 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       participant_id INTEGER,
       date TEXT,
-      amount REAL
+      amount REAL,
+      shop TEXT
     )`);
 });
 
@@ -93,8 +94,8 @@ app.post("/api/participants/:id/credit", (req, res) => {
 
         // Log the transaction (with provided date)
         db.run(
-          `INSERT INTO transactions (participant_id, date, amount) VALUES (?, ?, ?)`,
-          [id, date, amount],
+          `INSERT INTO transactions (participant_id, date, amount, shop) VALUES (?, ?, ?, ?)`,
+          [id, date, amount, req.body.shop || "Credited"],
           (err2) => {
             if (err2) console.warn("Transaction log failed", err2);
             // Return updated participant
@@ -129,7 +130,7 @@ app.get("/api/participants/:id/transactions", (req, res) => {
 app.get("/api/transactions", (req, res) => {
   db.all(
     `
-    SELECT t.date, p.name, t.amount
+    SELECT t.date, p.name, t.amount, t.shop
     FROM transactions t
     JOIN participants p ON p.id = t.participant_id
     ORDER BY t.date DESC

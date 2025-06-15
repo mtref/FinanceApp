@@ -50,7 +50,12 @@ export default function App() {
 
   const loadAllTx = async () => {
     const res = await fetch("/api/transactions");
-    setAllTx(await res.json());
+    const data = await res.json();
+    const withShop = data.map((tx) => ({
+      ...tx,
+      shop: tx.shop ?? (tx.amount > 0 ? "إضافة رصيد" : "خصم"),
+    }));
+    setAllTx(withShop);
   };
 
   useEffect(() => {
@@ -70,16 +75,9 @@ export default function App() {
   const handleCardClick = (name) => {
     if (filterName === name) {
       setFilterName("");
-      toast.info("تم إزالة الفلتر");
     } else {
       navigator.clipboard.writeText(name);
       setFilterName(name);
-      toast.info(
-        <span>
-          فلترة السجل لـ
-          <span className="text-purple-600 font-semibold"> {name}</span>
-        </span>
-      );
     }
   };
 
@@ -107,7 +105,11 @@ export default function App() {
       await fetch(`/api/participants/${payerId}/credit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: parseFloat(billAmount), date }),
+        body: JSON.stringify({
+          amount: parseFloat(billAmount),
+          date,
+          shop: shopName || "غير معروف",
+        }),
       });
 
       for (const c of contributions) {
@@ -117,7 +119,11 @@ export default function App() {
         await fetch(`/api/participants/${c.id}/credit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: -Math.abs(value), date }),
+          body: JSON.stringify({
+            amount: -Math.abs(value),
+            date,
+            shop: shopName || "غير معروف",
+          }),
         });
       }
 
@@ -396,6 +402,7 @@ export default function App() {
                     <th className="p-2 border-b">التاريخ</th>
                     <th className="p-2 border-b">الاسم</th>
                     <th className="p-2 border-b">المبلغ</th>
+                    <th className="p-2 border-b">المقهى</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,6 +433,7 @@ export default function App() {
                             ? `- ${Math.abs(tx.amount)}`
                             : `+ ${tx.amount}`}
                         </td>
+                        <td className="p-2 border-b">{tx.shop}</td>
                       </tr>
                     ))
                   )}
@@ -511,7 +519,8 @@ export default function App() {
                     📅 التاريخ
                   </label>
                   <Datepicker
-                    asSingle
+                    asSingle={true}
+                    useRange={false}
                     value={billDate}
                     onChange={setBillDate}
                     displayFormat="DD/MM/YYYY"
@@ -626,7 +635,8 @@ export default function App() {
               </h3>
               <div className="relative">
                 <Datepicker
-                  asSingle
+                  asSingle={true}
+                  useRange={false}
                   value={creditDate}
                   onChange={setCreditDate}
                   displayFormat="DD/MM/YYYY"
