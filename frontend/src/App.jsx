@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import Datepicker from "react-tailwindcss-datepicker";
 import { XCircle, Loader } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function App() {
   const [participants, setParticipants] = useState([]);
@@ -71,11 +73,19 @@ export default function App() {
       0
     );
     if (parseFloat(billAmount) !== totalPaid) {
-      alert("يجب أن يكون إجمالي المدفوع من المشاركين مساوياً لإجمالي الفاتورة");
+      toast.error(
+        "يجب أن يكون إجمالي المدفوع من المشاركين مساوياً لإجمالي الفاتورة"
+      );
+      return;
+    }
+    if (!payerId) {
+      toast.error("الرجاء اختيار الدافع أولاً");
       return;
     }
 
     const date = new Date(billDate.startDate).toISOString().split("T")[0];
+    const payerName =
+      participants.find((p) => String(p.id) === String(payerId))?.name || "";
 
     try {
       await fetch(`/api/participants/${payerId}/credit`, {
@@ -95,6 +105,14 @@ export default function App() {
         });
       }
 
+      toast.success(
+        <span>
+          تم تسجيل فاتورة لصالح{" "}
+          <span className="text-blue-700 font-semibold">{payerName}</span> بمبلغ{" "}
+          <span className="text-green-600 font-bold">{billAmount} ريال</span>
+        </span>
+      );
+
       setSplitBill(false);
       setShopName("");
       setBillAmount("");
@@ -103,17 +121,25 @@ export default function App() {
       await loadParticipants();
     } catch (err) {
       console.error("Error submitting bill split:", err);
-      alert("حدث خطأ أثناء الحفظ. الرجاء المحاولة لاحقاً.");
+      toast.error("حدث خطأ أثناء الحفظ. الرجاء المحاولة لاحقاً.");
     }
   };
 
   const addParticipant = async () => {
     if (!name.trim()) return;
+    const trimmedName = name.trim();
     await fetch("/api/participants", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: name.trim() }),
     });
+    toast.success(
+      <span>
+        تمت إضافة{" "}
+        <span className="text-green-800 font-semibold">{trimmedName}</span>{" "}
+        بنجاح
+      </span>
+    );
     setName("");
     setAdding(false);
     await loadParticipants();
@@ -122,6 +148,7 @@ export default function App() {
 
   const handleCredit = async () => {
     const date = new Date(creditDate.startDate).toISOString().split("T")[0];
+    const participant = participants.find((p) => p.id === creditId);
     await fetch(`/api/participants/${creditId}/credit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -135,11 +162,26 @@ export default function App() {
     });
     await loadParticipants();
     await loadAllTx();
+    toast.success(
+      <span>
+        تمت إضافة{" "}
+        <span className="text-green-600 font-bold">{creditAmount}</span> إلى{" "}
+        <span className="text-purple-600 font-bold">{participant?.name}</span>
+      </span>
+    );
   };
 
   const handleDelete = async () => {
-    if (deletePassword !== "123456") return alert("كلمة المرور غير صحيحة");
+    if (deletePassword !== "123456")
+      return toast.error("كلمة المرور غير صحيحة");
+    const participant = participants.find((p) => p.id === deleteId);
+    const name = participant?.name || "مشارك";
     await fetch(`/api/participants/${deleteId}`, { method: "DELETE" });
+    toast.error(
+      <span>
+        تم حذف <span className="text-red-700 font-bold">{name}</span> بنجاح
+      </span>
+    );
     setDeleteId(null);
     setDeletePassword("");
     await loadParticipants();
@@ -637,6 +679,7 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      <ToastContainer position="top-right" autoClose={5000} />
     </>
   );
 }
