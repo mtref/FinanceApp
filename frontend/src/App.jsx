@@ -188,7 +188,7 @@ export default function App() {
       <span>
         تمت إضافة{" "}
         <span className="text-green-600 font-bold">{creditAmount}</span> إلى{" "}
-        <span className="text-purple-600 font-bold">{participant?.name}</span>
+        <span className="text-indigo-600 font-bold">{participant?.name}</span>
       </span>
     );
   };
@@ -247,10 +247,10 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-indigo-50">
         <div className="text-center animate-pulse">
-          <Loader className="w-16 h-16 text-purple-600 mx-auto animate-spin" />
-          <p className="mt-4 text-xl text-purple-700 font-semibold">
+          <Loader className="w-16 h-16 text-indigo-600 mx-auto animate-spin" />
+          <p className="mt-4 text-xl text-indigo-700 font-semibold">
             جاري تحميل البيانات...
           </p>
         </div>
@@ -265,10 +265,10 @@ export default function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         dir="rtl"
-        className="min-h-screen bg-gradient-to-br from-gray-50 to-purple-50 py-10 px-4 font-zain"
+        className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-10 px-4 font-zain"
       >
         <div className="max-w-5xl mx-auto space-y-6">
-          <h1 className="text-4xl font-extrabold text-center text-purple-700 mb-10">
+          <h1 className="text-4xl font-extrabold text-center text-indigo-700 mb-10">
             تطبيق إدارة المشاركين
           </h1>
 
@@ -280,7 +280,7 @@ export default function App() {
               ➕ إضافة مشارك
             </button>
             <button
-              className="bg-purple-600 text-white px-5 py-2 rounded-xl hover:bg-purple-700 shadow"
+              className="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 shadow"
               onClick={() => setSplitBill(true)}
             >
               🧾 تقسيم الفاتورة
@@ -288,7 +288,7 @@ export default function App() {
           </div>
 
           <div className="flex justify-center mb-10">
-            <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-purple-500">
+            <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-indigo-500">
               <h2 className="text-lg font-bold text-gray-700 mb-2">
                 إجمالي الرصيد الإيجابي
               </h2>
@@ -397,7 +397,7 @@ export default function App() {
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-right border-collapse">
-                <thead className="bg-purple-100 text-purple-800 font-bold">
+                <thead className="bg-indigo-100 text-indigo-800 font-bold">
                   <tr>
                     <th className="p-2 border-b">التاريخ</th>
                     <th className="p-2 border-b">الاسم</th>
@@ -450,7 +450,7 @@ export default function App() {
                     onClick={() => setCurrentPage(i + 1)}
                     className={`px-3 py-1 rounded ${
                       currentPage === i + 1
-                        ? "bg-purple-600 text-white"
+                        ? "bg-indigo-600 text-white"
                         : "bg-gray-200 text-gray-800"
                     }`}
                   >
@@ -510,7 +510,7 @@ export default function App() {
             className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto"
           >
             <div className="bg-white rounded-xl shadow-2xl p-6 w-[90%] max-w-3xl">
-              <h2 className="text-2xl font-bold text-purple-700 mb-6 border-b pb-2">
+              <h2 className="text-2xl font-bold text-indigo-700 mb-6 border-b pb-2">
                 🧾 تقسيم الفاتورة
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -524,8 +524,8 @@ export default function App() {
                     value={billDate}
                     onChange={setBillDate}
                     displayFormat="DD/MM/YYYY"
-                    inputClassName="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded text-right pl-10"
-                    toggleClassName="absolute left-0 h-full px-3 text-purple-500"
+                    inputClassName="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded text-right pl-10"
+                    toggleClassName="absolute left-0 h-full px-3 text-indigo-500"
                   />
                 </div>
                 <div>
@@ -534,7 +534,7 @@ export default function App() {
                   </label>
                   <input
                     type="text"
-                    className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded"
+                    className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
                     value={shopName}
                     onChange={(e) => setShopName(e.target.value)}
                   />
@@ -544,7 +544,7 @@ export default function App() {
                     💸 الدافع
                   </label>
                   <select
-                    className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded"
+                    className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
                     value={payerId}
                     onChange={(e) => setPayerId(e.target.value)}
                   >
@@ -563,14 +563,14 @@ export default function App() {
                   <input
                     type="number"
                     min="0"
-                    className="w-full border border-purple-300 focus:ring-2 focus:ring-purple-400 p-2 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     value={billAmount}
                     onChange={(e) => setBillAmount(e.target.value)}
                   />
                 </div>
               </div>
               <div className="mt-6">
-                <h3 className="text-lg font-semibold text-purple-700 mb-3">
+                <h3 className="text-lg font-semibold text-indigo-700 mb-3">
                   👥 المشاركون
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -579,7 +579,7 @@ export default function App() {
                     return (
                       <div
                         key={c.id}
-                        className="flex justify-between items-center border border-purple-200 bg-purple-50 rounded-lg px-4 py-2 shadow-sm"
+                        className="flex justify-between items-center border border-indigo-200 bg-indigo-50 rounded-lg px-4 py-2 shadow-sm"
                       >
                         <span className="font-medium text-gray-800">
                           {p?.name}
@@ -587,7 +587,7 @@ export default function App() {
                         <input
                           type="number"
                           min="0"
-                          className="w-24 border border-purple-300 focus:ring-2 focus:ring-purple-400 p-1 rounded text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-24 border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-1 rounded text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           value={c.amount}
                           onChange={(e) => {
                             const updated = [...contributions];
@@ -608,7 +608,7 @@ export default function App() {
                   إلغاء
                 </button>
                 <button
-                  className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
                   onClick={handleSplitBillSubmit}
                 >
                   💾 حفظ
