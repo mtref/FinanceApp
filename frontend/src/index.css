@@ -91,6 +91,13 @@
   font-weight: 400;
   font-style: italic;
 }
+@font-face {
+  font-family: "El Messiri";
+  src: url("./fonts/El_Messiri/ElMessiri-VariableFont_wght.ttf")
+    format("truetype");
+  font-weight: 100 900; /* variable range */
+  font-style: normal;
+}
 body {
-  font-family: "Zain", sans-serif !important;
+  font-family: "El Messiri", sans-serif !important;
 }

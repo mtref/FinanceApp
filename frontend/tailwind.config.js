@@ -7,6 +7,8 @@ module.exports = {
   extend: {
     fontFamily: {
       tajawal: ["Tajawal", "sans-serif"],
+      tajawal: ["Zain", "sans-serif"],
+      tajawal: ["El Messiri", "sans-serif"],
     },
     animation: {
       "fade-in": "fadeIn 0.3s ease-out",

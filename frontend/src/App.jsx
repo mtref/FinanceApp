@@ -1,12 +1,13 @@
 // تحديث App.jsx - إصلاح خطأ 400 أثناء الخصم من المشاركين
 import React, { useState, useEffect, useMemo } from "react";
 import Datepicker from "react-tailwindcss-datepicker";
-import { XCircle, Loader } from "lucide-react";
+import { XCircle, Loader, ChevronLeft, ChevronRight } from "lucide-react"; // ⬅️ Import new icons
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function App() {
+  // ... (all your existing state declarations remain the same)
   const [participants, setParticipants] = useState([]);
   const [rawParticipants, setRawParticipants] = useState([]);
   const [name, setName] = useState("");
@@ -31,7 +32,7 @@ export default function App() {
   const [deletePassword, setDeletePassword] = useState("");
 
   const [filterName, setFilterName] = useState("");
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(10); // ⬅️ Changed default for better view
   const [currentPage, setCurrentPage] = useState(1);
   const [filterDate, setFilterDate] = useState(null);
   const [filterDateValue, setFilterDateValue] = useState({
@@ -39,6 +40,8 @@ export default function App() {
     endDate: null,
   });
   const [loading, setLoading] = useState(true);
+
+  // ... (all your existing functions like loadParticipants, loadAllTx, etc. remain the same)
   const loadParticipants = async () => {
     const res = await fetch("/api/participants");
     const data = await res.json();
@@ -73,10 +76,11 @@ export default function App() {
   }, []);
 
   const handleCardClick = (name) => {
+    // If the clicked name is already the active filter, clear the filter (toggle off).
     if (filterName === name) {
       setFilterName("");
     } else {
-      navigator.clipboard.writeText(name);
+      // Otherwise, set the filter to the clicked participant's name.
       setFilterName(name);
     }
   };
@@ -258,6 +262,7 @@ export default function App() {
     );
   }
 
+  // ... (The top part of your return statement remains the same)
   return (
     <>
       <div
@@ -265,7 +270,7 @@ export default function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         dir="rtl"
-        className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-10 px-4 font-zain"
+        className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-10 px-4 el-messiri"
       >
         <div className="max-w-5xl mx-auto space-y-6">
           <h1 className="text-4xl font-extrabold text-center text-indigo-700 mb-10">
@@ -307,33 +312,50 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05, duration: 0.4 }}
                   onClick={() => handleCardClick(p.name)}
-                  className={`rounded-xl shadow-md p-4 border-r-2 ${
+                  className={`cursor-pointer rounded-xl shadow-md p-4 border-r-4 ${
+                    // Added cursor-pointer and thicker border
                     p.balance < 0
-                      ? "border-red-500 bg-red-50"
-                      : "border-green-500 bg-green-50"
+                      ? "border-red-500 bg-red-50 hover:bg-red-100" // Added hover
+                      : "border-green-500 bg-green-50 hover:bg-green-100" // Added hover
                   }`}
                 >
-                  <h2 className="text-xl font-bold mb-1">{p.name}</h2>
-                  <p className="text-lg">
+                  <h2 className="text-xl font-bold mb-1 text-gray-800">
+                    {p.name}
+                  </h2>
+                  <p className="text-lg mb-3">
+                    {" "}
+                    {/* Added margin-bottom */}
                     الرصيد:
                     <span
-                      className={
+                      className={`font-bold ${
+                        // Made font bold
                         p.balance < 0 ? "text-red-600" : "text-green-600"
-                      }
+                      }`}
                     >
-                      {p.balance}
+                      {" "}
+                      {p.balance.toFixed(2)}
                     </span>
                   </p>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center pt-2 border-t">
+                    {" "}
+                    {/* Added border-top */}
                     <button
-                      className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 text-sm"
-                      onClick={() => setCreditId(p.id)}
+                      className="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600 text-sm"
+                      // ✨ FIX: Add event (e) and call stopPropagation
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCreditId(p.id);
+                      }}
                     >
                       💰 رصيد
                     </button>
                     <button
-                      className="text-red-500 text-sm font-bold hover:underline"
-                      onClick={() => setDeleteId(p.id)}
+                      className="text-red-600 text-sm font-bold hover:underline"
+                      // ✨ FIX: Add event (e) and call stopPropagation
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(p.id);
+                      }}
                     >
                       حذف
                     </button>
@@ -343,125 +365,154 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-md p-4 mt-6">
-            <h2 className="ext-lg font-bold text-gray-700 mb-2">
+          <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
+            {" "}
+            {/* ⬅️ Added shadow-lg & more padding */}
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">
+              {" "}
+              {/* ⬅️ Styled heading */}
               سجل المعاملات
             </h2>
-
             {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4">
-              <input
-                type="text"
-                placeholder="بحث بالاسم"
-                className="px-3 py-2 rounded border w-full md:w-1/3"
-                value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
-              />
-              {filterName && (
-                <XCircle
-                  className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer hover:text-red-500"
-                  size={20}
-                  onClick={() => setFilterName("")}
+            <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-4 pb-4 border-b">
+              {" "}
+              {/* ⬅️ Added border */}
+              <div className="relative w-full md:w-1/3">
+                <input
+                  type="text"
+                  placeholder="بحث بالاسم..."
+                  className="px-3 py-2 rounded-lg border w-full focus:ring-2 focus:ring-indigo-300"
+                  value={filterName}
+                  onChange={(e) => setFilterName(e.target.value)}
                 />
-              )}
-              <Datepicker
-                value={filterDateValue}
-                asSingle={true}
-                useRange={false}
-                onChange={handleFilterDateChange}
-                placeholder="تصفية بالتاريخ"
-                // Add padding to the right of the input to make space for the icon
-                inputClassName="px-3 py-2 rounded border pr-8" // pr-8 is padding-right: 2rem
-                displayFormat="YYYY-MM-DD"
-              />
-              {filterDate && (
-                <button
-                  onClick={() => handleFilterDateChange({ startDate: null })}
-                  // Positioning classes to place the button inside the input area
-                  className="absolute top-1/2 right-2 -translate-y-1/2"
-                >
-                  <XCircle className="text-red-500 w-5 h-5" />
-                </button>
-              )}
+                {filterName && (
+                  <XCircle
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer hover:text-red-500"
+                    size={20}
+                    onClick={() => setFilterName("")}
+                  />
+                )}
+              </div>
+              <div className="relative w-full md:w-auto">
+                <Datepicker
+                  value={filterDateValue}
+                  asSingle={true}
+                  useRange={false}
+                  onChange={handleFilterDateChange}
+                  placeholder="تصفية بالتاريخ"
+                  inputClassName="px-3 py-2 rounded-lg border w-full text-right pr-10 focus:ring-2 focus:ring-indigo-300"
+                  displayFormat="YYYY-MM-DD"
+                  toggleClassName="absolute left-0 h-full px-3 text-indigo-500"
+                />
+                {filterDate && (
+                  <button
+                    onClick={() => handleFilterDateChange({ startDate: null })}
+                    className="absolute top-1/2 left-10 transform -translate-y-1/2" // Adjusted position
+                  ></button>
+                )}
+              </div>
               <select
                 value={itemsPerPage}
                 onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="px-3 py-2 rounded border w-full md:w-32"
+                className="px-3 py-2 rounded-lg border w-full md:w-auto focus:ring-2 focus:ring-indigo-300"
               >
-                <option value={10}>10 نتائج</option>
-                <option value={30}>30 نتيجة</option>
-                <option value={100}>100 نتيجة</option>
+                <option value={5}>5 لكل صفحة</option>
+                <option value={10}>10 لكل صفحة</option>
+                <option value={20}>20 لكل صفحة</option>
+                <option value={50}>50 لكل صفحة</option>
               </select>
             </div>
-
             {/* Table */}
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-right border-collapse">
-                <thead className="bg-indigo-100 text-indigo-800 font-bold">
+                <thead className="bg-indigo-100 text-indigo-800 font-bold uppercase">
                   <tr>
-                    <th className="p-2 border-b">التاريخ</th>
-                    <th className="p-2 border-b">الاسم</th>
-                    <th className="p-2 border-b">المبلغ</th>
-                    <th className="p-2 border-b">المقهى</th>
+                    <th className="p-3 border-b-2 border-indigo-200">
+                      التاريخ
+                    </th>
+                    <th className="p-3 border-b-2 border-indigo-200">الاسم</th>
+                    <th className="p-3 border-b-2 border-indigo-200">المبلغ</th>
+                    <th className="p-3 border-b-2 border-indigo-200">المحل</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paged.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={3}
-                        className="text-center py-4 text-gray-500"
+                        colSpan={4}
+                        className="text-center py-10 text-gray-500"
                       >
-                        لا توجد معاملات مطابقة
+                        لا توجد معاملات مطابقة للمعايير المحددة.
                       </td>
                     </tr>
                   ) : (
                     paged.map((tx, i) => (
                       <tr
-                        className={`animate-fade-in ${
+                        key={`${tx.id}-${i}`}
+                        className={`hover:bg-indigo-50 transition-colors duration-200 ${
                           i % 2 === 0 ? "bg-white" : "bg-gray-50"
                         }`}
                       >
-                        <td className="p-2 border-b">{tx.date}</td>
-                        <td className="p-2 border-b">{tx.name}</td>
+                        <td className="p-3 border-b">{tx.date}</td>
+                        <td className="p-3 border-b font-medium text-gray-800">
+                          {tx.name}
+                        </td>
                         <td
-                          className={`p-2 border-b font-semibold ${
+                          className={`p-3 border-b font-semibold ${
                             tx.amount < 0 ? "text-red-600" : "text-green-600"
                           }`}
                         >
                           {tx.amount < 0
-                            ? `- ${Math.abs(tx.amount)}`
-                            : `+ ${tx.amount}`}
+                            ? `- ${Math.abs(tx.amount).toFixed(2)}`
+                            : `+ ${tx.amount.toFixed(2)}`}
                         </td>
-                        <td className="p-2 border-b">{tx.shop}</td>
+                        <td className="p-3 border-b text-gray-600">
+                          {tx.shop}
+                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
             </div>
-
-            {/* Pagination */}
+            {/* START: New Pagination UI */}
             {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-3 mt-4">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i + 1)}
-                    className={`px-3 py-1 rounded ${
-                      currentPage === i + 1
-                        ? "bg-indigo-600 text-white"
-                        : "bg-gray-200 text-gray-800"
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+              <div className="flex justify-between items-center gap-3 mt-6 pt-4 border-t">
+                {/* Previous Button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                  }
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-indigo-500 hover:text-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={18} />
+                  <span>السابق</span>
+                </button>
+
+                {/* Page Info */}
+                <span className="text-gray-700 font-medium">
+                  صفحة {currentPage} من {totalPages}
+                </span>
+
+                {/* Next Button */}
+                <button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-indigo-500 hover:text-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span>التالي</span>
+                  <ChevronLeft size={18} />
+                </button>
               </div>
             )}
+            {/* END: New Pagination UI */}
           </div>
         </div>
       </div>
+      {/* ... (All your existing Modals and ToastContainer remain the same) */}
       <AnimatePresence>
         {adding && (
           <motion.div
