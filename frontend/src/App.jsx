@@ -15,6 +15,7 @@ import {
   Edit,
   Save,
   X,
+  Percent,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
@@ -38,7 +39,6 @@ const PurchasesPage = ({ onBack }) => {
   const [formNameId, setFormNameId] = useState("");
   const [formDetails, setFormDetails] = useState("");
 
-  // Refs for auto-focus
   const addNameInputRef = useRef(null);
   const transactionAmountInputRef = useRef(null);
 
@@ -202,6 +202,7 @@ const PurchasesPage = ({ onBack }) => {
                   ref={transactionAmountInputRef}
                   type="number"
                   min="0"
+                  step="0.001"
                   className={`w-full border border-gray-300 focus:ring-2 focus:ring-${themeColor}-400 p-2 rounded`}
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
@@ -291,7 +292,7 @@ const PurchasesPage = ({ onBack }) => {
               totalCash >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
-            {totalCash.toFixed(2)}
+            {totalCash.toFixed(3)}
           </p>
         </div>
       </div>
@@ -357,7 +358,7 @@ const PurchasesPage = ({ onBack }) => {
                       }`}
                     >
                       {tx.type === "credit" ? "+" : "-"}
-                      {tx.amount.toFixed(2)}
+                      {tx.amount.toFixed(3)}
                     </td>
                     <td className="p-3 text-gray-700">{tx.name || "---"}</td>
                     <td className="p-3 text-gray-600">{tx.details || "---"}</td>
@@ -409,7 +410,6 @@ const MenusPage = ({ onBack }) => {
   const [editingItemName, setEditingItemName] = useState("");
   const [editingItemPrice, setEditingItemPrice] = useState("");
 
-  // Refs for auto-focus
   const addShopInputRef = useRef(null);
   const addItemNameInputRef = useRef(null);
   const editingPriceInputRef = useRef(null);
@@ -619,7 +619,7 @@ const MenusPage = ({ onBack }) => {
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="0.001"
               className="w-full border border-teal-300 focus:ring-2 focus:ring-teal-400 p-2 rounded"
               value={newItemPrice}
               placeholder="السعر"
@@ -880,12 +880,20 @@ export default function App() {
   });
   const [loading, setLoading] = useState(true);
 
+  // New state for tax feature
+  const [showTaxInput, setShowTaxInput] = useState(false);
+  const [taxRate, setTaxRate] = useState("");
+
+  // New state for participant search
+  const [participantSearchTerm, setParticipantSearchTerm] = useState("");
+
   // Refs for auto-focus on main page modals
   const addParticipantInputRef = useRef(null);
   const splitBillShopNameRef = useRef(null);
   const creditAmountRef = useRef(null);
   const debitAmountRef = useRef(null);
   const deletePasswordRef = useRef(null);
+  const taxInputRef = useRef(null);
 
   useEffect(() => {
     if (adding) setTimeout(() => addParticipantInputRef.current?.focus(), 100);
@@ -894,6 +902,12 @@ export default function App() {
     if (debitId) setTimeout(() => debitAmountRef.current?.focus(), 100);
     if (deleteId) setTimeout(() => deletePasswordRef.current?.focus(), 100);
   }, [adding, splitBill, creditId, debitId, deleteId]);
+
+  useEffect(() => {
+    if (showTaxInput) {
+      setTimeout(() => taxInputRef.current?.focus(), 100);
+    }
+  }, [showTaxInput]);
 
   const loadParticipants = async () => {
     const res = await fetch("/api/participants");
@@ -909,7 +923,7 @@ export default function App() {
     setAllTx(
       data.map((tx) => ({
         ...tx,
-        shop: tx.shop ?? (tx.amount > 0 ? "Credited" : "Unknown"),
+        shop: tx.shop ?? (tx.amount > 0 ? "إيداع في الحساب" : "غير معروف"),
       }))
     );
   };
@@ -923,6 +937,28 @@ export default function App() {
     }
   }, [view]);
 
+  const handleApplyTax = () => {
+    const rate = parseFloat(taxRate);
+    if (isNaN(rate) || rate < 0) {
+      toast.error("الرجاء إدخال نسبة ضريبة صحيحة");
+      return;
+    }
+
+    const taxMultiplier = 1 + rate / 100;
+
+    const newContributions = contributions.map((c) => {
+      const amount = parseFloat(c.amount);
+      if (!isNaN(amount) && amount > 0) {
+        return { ...c, amount: (amount * taxMultiplier).toFixed(3) };
+      }
+      return c;
+    });
+
+    setContributions(newContributions);
+    setShowTaxInput(false);
+    setTaxRate("");
+  };
+
   const handleCardClick = (name) => {
     setFilterName((prev) => (prev === name ? "" : name));
   };
@@ -932,7 +968,7 @@ export default function App() {
       (sum, c) => sum + parseFloat(c.amount || 0),
       0
     );
-    if (parseFloat(billAmount) !== totalPaid)
+    if (Math.abs(parseFloat(billAmount) - totalPaid) > 0.01)
       return toast.error(
         "يجب أن يكون إجمالي المدفوع من المشاركين مساوياً لإجمالي الفاتورة"
       );
@@ -1011,14 +1047,8 @@ export default function App() {
       body: JSON.stringify({
         amount: parseFloat(creditAmount),
         date,
-        shop: "Credited",
+        shop: "إيداع في الحساب",
       }),
-    });
-    setCreditId(null);
-    setCreditAmount("");
-    setCreditDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
     });
     await loadParticipants();
     await loadAllTx();
@@ -1030,6 +1060,12 @@ export default function App() {
         <span className="text-indigo-600 font-bold">{participant?.name}</span>
       </span>
     );
+    setCreditId(null);
+    setCreditAmount("");
+    setCreditDate({
+      startDate: new Date().toISOString(),
+      endDate: new Date().toISOString(),
+    });
   };
   const handleDebit = async () => {
     const date = new Date(debitDate.startDate).toISOString().split("T")[0];
@@ -1038,12 +1074,6 @@ export default function App() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount: parseFloat(debitAmount), date }),
-    });
-    setDebitId(null);
-    setDebitAmount("");
-    setDebitDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
     });
     await loadParticipants();
     await loadAllTx();
@@ -1054,6 +1084,12 @@ export default function App() {
         <span className="text-indigo-600 font-bold">{participant?.name}</span>
       </span>
     );
+    setDebitId(null);
+    setDebitAmount("");
+    setDebitDate({
+      startDate: new Date().toISOString(),
+      endDate: new Date().toISOString(),
+    });
   };
   const handleDelete = async () => {
     if (deletePassword !== "123456")
@@ -1061,6 +1097,8 @@ export default function App() {
     const participant = participants.find((p) => p.id === deleteId);
     const name = participant?.name || "مشارك";
     await fetch(`/api/participants/${deleteId}`, { method: "DELETE" });
+    await loadParticipants();
+    await loadAllTx();
     toast.error(
       <span>
         تم حذف <span className="text-red-700 font-bold">{name}</span> بنجاح
@@ -1068,8 +1106,6 @@ export default function App() {
     );
     setDeleteId(null);
     setDeletePassword("");
-    await loadParticipants();
-    await loadAllTx();
   };
   const handleFilterDateChange = (newValue) => {
     if (!newValue.startDate) {
@@ -1082,6 +1118,15 @@ export default function App() {
     }
     setCurrentPage(1);
   };
+
+  const filteredParticipants = useMemo(() => {
+    if (!participantSearchTerm) {
+      return participants;
+    }
+    return participants.filter((p) =>
+      p.name.toLowerCase().includes(participantSearchTerm.toLowerCase())
+    );
+  }, [participants, participantSearchTerm]);
 
   const filtered = useMemo(
     () =>
@@ -1166,14 +1211,25 @@ export default function App() {
                       إجمالي المبلغ في الصندوق
                     </h2>
                     <p className="text-2xl text-green-600 font-bold">
-                      {totalPositiveBalance.toFixed(2)}
+                      {totalPositiveBalance.toFixed(3)}
                     </p>
                   </div>
                 </div>
+
+                {/* START: Participant Search */}
+                <div className="max-w-md mx-auto mb-6">
+                  {/* Search input removed */}
+                </div>
+                {/* END: Participant Search */}
+
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-12">
                   {participants.map((p) => (
                     <motion.div
+                      layout
                       key={p.id}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
                       onClick={() => handleCardClick(p.name)}
                       className={`cursor-pointer rounded-xl shadow-md p-4 border-r-4 ${
                         p.balance < 0
@@ -1192,7 +1248,7 @@ export default function App() {
                           }`}
                         >
                           {" "}
-                          {p.balance.toFixed(2)}
+                          {p.balance.toFixed(3)}
                         </span>
                       </p>
                       <div className="flex justify-between items-center pt-2 border-t gap-2">
@@ -1326,8 +1382,8 @@ export default function App() {
                                 }`}
                               >
                                 {tx.amount < 0
-                                  ? `- ${Math.abs(tx.amount).toFixed(2)}`
-                                  : `+ ${tx.amount.toFixed(2)}`}
+                                  ? `- ${Math.abs(tx.amount).toFixed(3)}`
+                                  : `+ ${tx.amount.toFixed(3)}`}
                               </td>
                               <td className="p-3 border-b text-gray-600">
                                 {tx.shop}
@@ -1416,7 +1472,7 @@ export default function App() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 50 }}
                     transition={{ duration: 0.3 }}
-                    className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto"
+                    className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto p-4"
                   >
                     <div className="bg-white rounded-xl shadow-2xl p-6 w-[90%] max-w-3xl">
                       <h2 className="text-2xl font-bold text-indigo-700 mb-6 border-b pb-2">
@@ -1468,11 +1524,12 @@ export default function App() {
                         </div>
                         <div>
                           <label className="block mb-1 text-sm font-medium text-gray-700">
-                            � إجمالي الفاتورة
+                            💰 إجمالي الفاتورة
                           </label>
                           <input
                             type="number"
                             min="0"
+                            step="0.001"
                             className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             value={billAmount}
                             onChange={(e) => setBillAmount(e.target.value)}
@@ -1482,7 +1539,48 @@ export default function App() {
                           />
                         </div>
                       </div>
-                      <div className="mt-6">
+                      <div className="mt-6 border-t pt-4">
+                        {!showTaxInput ? (
+                          <button
+                            onClick={() => setShowTaxInput(true)}
+                            className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
+                          >
+                            <Percent size={16} />
+                            إضافة ضريبة
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                            <label className="text-sm font-medium">
+                              نسبة الضريبة:
+                            </label>
+                            <input
+                              ref={taxInputRef}
+                              type="number"
+                              value={taxRate}
+                              onChange={(e) => setTaxRate(e.target.value)}
+                              className="w-20 border-indigo-300 rounded-md p-1 focus:ring-2 focus:ring-indigo-400"
+                              placeholder="e.g., 5"
+                              onKeyDown={(e) =>
+                                e.key === "Enter" && handleApplyTax()
+                              }
+                            />
+                            <span>%</span>
+                            <button
+                              onClick={handleApplyTax}
+                              className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
+                            >
+                              تطبيق
+                            </button>
+                            <button
+                              onClick={() => setShowTaxInput(false)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-4">
                         <h3 className="text-lg font-semibold text-indigo-700 mb-3">
                           👥 المشاركون
                         </h3>
@@ -1500,6 +1598,7 @@ export default function App() {
                                 <input
                                   type="number"
                                   min="0"
+                                  step="0.001"
                                   className="w-24 border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-1 rounded text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={c.amount}
                                   onChange={(e) => {
@@ -1560,6 +1659,7 @@ export default function App() {
                         ref={creditAmountRef}
                         type="number"
                         min="0"
+                        step="0.001"
                         className="w-full border p-2 mb-4 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="المبلغ"
                         value={creditAmount}
@@ -1613,6 +1713,7 @@ export default function App() {
                         ref={debitAmountRef}
                         type="number"
                         min="0"
+                        step="0.001"
                         className="w-full border p-2 mb-4 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-red-300"
                         placeholder="المبلغ المراد خصمه"
                         value={debitAmount}
