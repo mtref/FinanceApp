@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Datepicker from "react-tailwindcss-datepicker";
 import {
   XCircle,
@@ -37,6 +37,19 @@ const PurchasesPage = ({ onBack }) => {
   const [formAmount, setFormAmount] = useState("");
   const [formNameId, setFormNameId] = useState("");
   const [formDetails, setFormDetails] = useState("");
+
+  // Refs for auto-focus
+  const addNameInputRef = useRef(null);
+  const transactionAmountInputRef = useRef(null);
+
+  useEffect(() => {
+    if (modal === "addName") {
+      setTimeout(() => addNameInputRef.current?.focus(), 100);
+    }
+    if (modal === "credit" || modal === "purchase") {
+      setTimeout(() => transactionAmountInputRef.current?.focus(), 100);
+    }
+  }, [modal]);
 
   const fetchData = async () => {
     try {
@@ -129,11 +142,13 @@ const PurchasesPage = ({ onBack }) => {
               إضافة اسم جديد
             </h2>
             <input
+              ref={addNameInputRef}
               type="text"
               className="w-full border border-blue-300 focus:ring-2 focus:ring-blue-400 p-2 rounded mb-4"
               value={newName}
               placeholder="اكتب الاسم"
               onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddName()}
             />
             <div className="flex justify-end gap-2">
               <button
@@ -184,11 +199,15 @@ const PurchasesPage = ({ onBack }) => {
                   المبلغ
                 </label>
                 <input
+                  ref={transactionAmountInputRef}
                   type="number"
                   min="0"
                   className={`w-full border border-gray-300 focus:ring-2 focus:ring-${themeColor}-400 p-2 rounded`}
                   value={formAmount}
                   onChange={(e) => setFormAmount(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleTransaction(modal)
+                  }
                 />
               </div>
               <div>
@@ -217,6 +236,9 @@ const PurchasesPage = ({ onBack }) => {
                   value={formDetails}
                   onChange={(e) => setFormDetails(e.target.value)}
                   rows="2"
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleTransaction(modal)
+                  }
                 ></textarea>
               </div>
             </div>
@@ -387,6 +409,29 @@ const MenusPage = ({ onBack }) => {
   const [editingItemName, setEditingItemName] = useState("");
   const [editingItemPrice, setEditingItemPrice] = useState("");
 
+  // Refs for auto-focus
+  const addShopInputRef = useRef(null);
+  const addItemNameInputRef = useRef(null);
+  const editingPriceInputRef = useRef(null);
+
+  useEffect(() => {
+    if (modal === "addShop") {
+      setTimeout(() => addShopInputRef.current?.focus(), 100);
+    }
+    if (modal === "addItem") {
+      setTimeout(() => addItemNameInputRef.current?.focus(), 100);
+    }
+  }, [modal]);
+
+  useEffect(() => {
+    if (editingItemId && editingPriceInputRef.current) {
+      setTimeout(() => {
+        editingPriceInputRef.current.focus();
+        editingPriceInputRef.current.select();
+      }, 100);
+    }
+  }, [editingItemId]);
+
   const fetchShops = async () => {
     setLoading(true);
     try {
@@ -531,11 +576,13 @@ const MenusPage = ({ onBack }) => {
             إضافة مقهى جديد
           </h2>
           <input
+            ref={addShopInputRef}
             type="text"
             className="w-full border border-yellow-300 focus:ring-2 focus:ring-yellow-400 p-2 rounded mb-4"
             value={newShopName}
             placeholder="اكتب اسم المقهى"
             onChange={(e) => setNewShopName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddShop()}
           />
           <div className="flex justify-end gap-2">
             <button
@@ -562,6 +609,7 @@ const MenusPage = ({ onBack }) => {
           </h2>
           <div className="space-y-4">
             <input
+              ref={addItemNameInputRef}
               type="text"
               className="w-full border border-teal-300 focus:ring-2 focus:ring-teal-400 p-2 rounded"
               value={newItemName}
@@ -576,6 +624,7 @@ const MenusPage = ({ onBack }) => {
               value={newItemPrice}
               placeholder="السعر"
               onChange={(e) => setNewItemPrice(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
             />
           </div>
           <div className="flex justify-end gap-2 mt-6">
@@ -708,11 +757,15 @@ const MenusPage = ({ onBack }) => {
                           placeholder="اسم الصنف"
                         />
                         <input
+                          ref={editingPriceInputRef}
                           type="number"
                           value={editingItemPrice}
                           onChange={(e) => setEditingItemPrice(e.target.value)}
                           className="w-32 border border-teal-300 rounded-md px-3 py-1 text-lg"
                           placeholder="السعر"
+                          onKeyDown={(e) =>
+                            e.key === "Enter" && handleUpdateItem(item.id)
+                          }
                         />
                         <button
                           onClick={() => handleUpdateItem(item.id)}
@@ -826,6 +879,21 @@ export default function App() {
     endDate: null,
   });
   const [loading, setLoading] = useState(true);
+
+  // Refs for auto-focus on main page modals
+  const addParticipantInputRef = useRef(null);
+  const splitBillShopNameRef = useRef(null);
+  const creditAmountRef = useRef(null);
+  const debitAmountRef = useRef(null);
+  const deletePasswordRef = useRef(null);
+
+  useEffect(() => {
+    if (adding) setTimeout(() => addParticipantInputRef.current?.focus(), 100);
+    if (splitBill) setTimeout(() => splitBillShopNameRef.current?.focus(), 100);
+    if (creditId) setTimeout(() => creditAmountRef.current?.focus(), 100);
+    if (debitId) setTimeout(() => debitAmountRef.current?.focus(), 100);
+    if (deleteId) setTimeout(() => deletePasswordRef.current?.focus(), 100);
+  }, [adding, splitBill, creditId, debitId, deleteId]);
 
   const loadParticipants = async () => {
     const res = await fetch("/api/participants");
@@ -1315,11 +1383,13 @@ export default function App() {
                         ➕ إضافة مشارك جديد
                       </h2>
                       <input
+                        ref={addParticipantInputRef}
                         type="text"
                         className="w-full border border-green-300 focus:ring-2 focus:ring-green-400 p-2 rounded mb-4"
                         value={name}
                         placeholder="اكتب اسم المشترك"
                         onChange={(e) => setName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && addParticipant()}
                       />
                       <div className="flex justify-end gap-2">
                         <button
@@ -1372,6 +1442,7 @@ export default function App() {
                             🏪 اسم المقهى
                           </label>
                           <input
+                            ref={splitBillShopNameRef}
                             type="text"
                             className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
                             value={shopName}
@@ -1397,7 +1468,7 @@ export default function App() {
                         </div>
                         <div>
                           <label className="block mb-1 text-sm font-medium text-gray-700">
-                            💰 إجمالي الفاتورة
+                            � إجمالي الفاتورة
                           </label>
                           <input
                             type="number"
@@ -1405,6 +1476,9 @@ export default function App() {
                             className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             value={billAmount}
                             onChange={(e) => setBillAmount(e.target.value)}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && handleSplitBillSubmit()
+                            }
                           />
                         </div>
                       </div>
@@ -1483,12 +1557,14 @@ export default function App() {
                         />
                       </div>
                       <input
+                        ref={creditAmountRef}
                         type="number"
                         min="0"
                         className="w-full border p-2 mb-4 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="المبلغ"
                         value={creditAmount}
                         onChange={(e) => setCreditAmount(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleCredit()}
                       />
                       <div className="flex justify-end gap-2">
                         <button
@@ -1534,12 +1610,14 @@ export default function App() {
                         />
                       </div>
                       <input
+                        ref={debitAmountRef}
                         type="number"
                         min="0"
                         className="w-full border p-2 mb-4 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-red-300"
                         placeholder="المبلغ المراد خصمه"
                         value={debitAmount}
                         onChange={(e) => setDebitAmount(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleDebit()}
                       />
                       <div className="flex justify-end gap-2">
                         <button
@@ -1577,11 +1655,13 @@ export default function App() {
                         أدخل كلمة المرور لحذف المشارك
                       </p>
                       <input
+                        ref={deletePasswordRef}
                         type="password"
                         className="w-full border p-2 mb-4 rounded"
                         value={deletePassword}
                         onChange={(e) => setDeletePassword(e.target.value)}
                         placeholder="كلمة المرور"
+                        onKeyDown={(e) => e.key === "Enter" && handleDelete()}
                       />
                       <div className="flex justify-end gap-2">
                         <button
