@@ -59,6 +59,23 @@ db.serialize(() => {
     );
   `);
   // --- END: New Tables for Purchases Feature ---
+  // --- START: New Tables for Menus Feature ---
+  db.run(`
+    CREATE TABLE IF NOT EXISTS menu_shops (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    );
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS menu_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      shop_id INTEGER NOT NULL,
+      item_name TEXT NOT NULL,
+      price REAL NOT NULL,
+      FOREIGN KEY (shop_id) REFERENCES menu_shops(id) ON DELETE CASCADE
+    );
+  `);
+  // --- END: New Tables for Menus Feature ---
 });
 
 app.use(express.json());
@@ -114,7 +131,7 @@ app.post("/api/participants/:id/credit", (req, res) => {
         // Log the transaction (with provided date)
         db.run(
           `INSERT INTO transactions (participant_id, date, amount, shop) VALUES (?, ?, ?, ?)`,
-          [id, date, amount, req.body.shop || "Credited"],
+          [id, date, amount, req.body.shop || "إيداع في الحساب"],
           (err2) => {
             if (err2) console.warn("Transaction log failed", err2);
             // Return updated participant
@@ -297,6 +314,157 @@ app.post("/api/purchases/transactions", (req, res) => {
 });
 
 // ===== END: New API Routes for Purchases Feature =====
+
+// ===== START: New API Routes for Menus Feature =====
+
+// Get all coffee shops
+app.get("/api/menus/shops", (req, res) => {
+  db.all("SELECT * FROM menu_shops ORDER BY name", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+// Add a new coffee shop
+app.post("/api/menus/shops", (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: "Shop name is required" });
+  }
+  db.run(
+    "INSERT INTO menu_shops (name) VALUES (?)",
+    [name.trim()],
+    function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE constraint failed")) {
+          return res.status(409).json({ error: "Shop name already exists" });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ id: this.lastID, name: name.trim() });
+    }
+  );
+});
+
+// Get a single shop with its menu items
+app.get("/api/menus/shops/:id", (req, res) => {
+  const shopId = req.params.id;
+  db.get("SELECT * FROM menu_shops WHERE id = ?", [shopId], (err, shop) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!shop) return res.status(404).json({ error: "Shop not found" });
+
+    db.all(
+      "SELECT * FROM menu_items WHERE shop_id = ? ORDER BY item_name",
+      [shopId],
+      (err2, items) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+        res.json({ ...shop, menu_items: items });
+      }
+    );
+  });
+});
+
+// Add a menu item to a specific shop
+app.post("/api/menus/shops/:id/items", (req, res) => {
+  const shopId = req.params.id;
+  const { item_name, price } = req.body;
+  if (!item_name || !item_name.trim() || !price || isNaN(parseFloat(price))) {
+    return res.status(400).json({ error: "Invalid item name or price" });
+  }
+  db.run(
+    "INSERT INTO menu_items (shop_id, item_name, price) VALUES (?, ?, ?)",
+    [shopId, item_name.trim(), parseFloat(price)],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ id: this.lastID, item_name, price });
+    }
+  );
+});
+
+// Update a menu item
+app.put("/api/menus/items/:itemId", (req, res) => {
+  const { itemId } = req.params;
+  const { item_name, price } = req.body;
+
+  if (!item_name || !item_name.trim() || !price || isNaN(parseFloat(price))) {
+    return res.status(400).json({ error: "Invalid item name or price" });
+  }
+
+  db.run(
+    `UPDATE menu_items SET item_name = ?, price = ? WHERE id = ?`,
+    [item_name.trim(), parseFloat(price), itemId],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0)
+        return res.status(404).json({ error: "Item not found" });
+      res.status(200).json({ message: "Item updated successfully" });
+    }
+  );
+});
+
+// Delete a menu item
+app.delete("/api/menus/items/:itemId", (req, res) => {
+  const { itemId } = req.params;
+  db.run(`DELETE FROM menu_items WHERE id = ?`, [itemId], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0)
+      return res.status(404).json({ error: "Item not found" });
+    res.status(200).json({ message: "Item deleted successfully" });
+  });
+});
+
+// Delete a coffee shop (and all its items)
+app.delete("/api/menus/shops/:shopId", (req, res) => {
+  const { shopId } = req.params;
+
+  // Use db.serialize to run commands in order
+  db.serialize(() => {
+    // Begin a transaction to ensure both operations succeed or fail together
+    db.run("BEGIN TRANSACTION;");
+
+    let transactionError = null;
+
+    // Step 1: Delete all items belonging to the shop
+    db.run(
+      `DELETE FROM menu_items WHERE shop_id = ?`,
+      [shopId],
+      function (err) {
+        if (err) {
+          transactionError = err;
+        }
+      }
+    );
+
+    // Step 2: Delete the shop itself
+    db.run(`DELETE FROM menu_shops WHERE id = ?`, [shopId], function (err) {
+      if (err) {
+        transactionError = err;
+      } else if (this.changes === 0) {
+        // If the shop wasn't found, create an error
+        transactionError = new Error("Shop not found");
+      }
+    });
+
+    // Step 3: Finalize the transaction
+    db.run(transactionError ? "ROLLBACK;" : "COMMIT;", (err) => {
+      if (transactionError) {
+        console.error("Error deleting shop:", transactionError.message);
+        // Use a 404 for "not found" or 500 for other errors
+        const statusCode =
+          transactionError.message === "Shop not found" ? 404 : 500;
+        return res.status(statusCode).json({ error: transactionError.message });
+      }
+      if (err) {
+        // Handle commit error
+        return res.status(500).json({ error: err.message });
+      }
+      res
+        .status(200)
+        .json({ message: "Shop and all its items deleted successfully" });
+    });
+  });
+});
+// ===== END: New API Routes for Menus Feature =====
 
 // Test
 // Fallback to serve index.html for React Router

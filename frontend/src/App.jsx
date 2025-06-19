@@ -9,13 +9,19 @@ import {
   PlusCircle,
   ArrowDownCircle,
   ArrowUpCircle,
+  Coffee,
+  Utensils,
+  Trash2,
+  Edit,
+  Save,
+  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // ===================================================================================
-// PURCHASES PAGE COMPONENT (Working correctly, no changes needed)
+// PURCHASES PAGE COMPONENT
 // ===================================================================================
 const PurchasesPage = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
@@ -40,7 +46,6 @@ const PurchasesPage = ({ onBack }) => {
       ]);
       const namesData = await namesRes.json();
       const transactionsData = await transactionsRes.json();
-
       setNames(namesData);
       setTransactions(transactionsData.transactions);
       setTotalCash(transactionsData.totalCash);
@@ -55,7 +60,6 @@ const PurchasesPage = ({ onBack }) => {
   useEffect(() => {
     fetchData();
   }, []);
-
   const resetForm = () => {
     setNewName("");
     setFormDate({
@@ -67,9 +71,8 @@ const PurchasesPage = ({ onBack }) => {
     setFormDetails("");
     setModal(null);
   };
-
   const handleAddName = async () => {
-    if (!newName.trim()) return toast.error("Name cannot be empty.");
+    if (!newName.trim()) return toast.error("الرجاء كتابة الاسم");
     try {
       const res = await fetch("/api/purchases/names", {
         method: "POST",
@@ -78,19 +81,18 @@ const PurchasesPage = ({ onBack }) => {
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to add name.");
+        throw new Error(err.error || "فشل في كتابة الاسم");
       }
-      toast.success(`'${newName}' added successfully!`);
+      toast.success(`'${newName}'تمت إضافته بنجاح`);
       resetForm();
       fetchData();
     } catch (error) {
       toast.error(error.message);
     }
   };
-
   const handleTransaction = async (type) => {
     if (!formAmount || parseFloat(formAmount) <= 0)
-      return toast.error("Please enter a valid amount.");
+      return toast.error("الرجاء ادخال المبلغ.");
     const payload = {
       date: new Date(formDate.startDate).toISOString().split("T")[0],
       amount: parseFloat(formAmount),
@@ -104,14 +106,13 @@ const PurchasesPage = ({ onBack }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      toast.success(`Transaction recorded successfully!`);
+      toast.success(`تم تسجيل المعاملة بنجاح`);
       resetForm();
       fetchData();
     } catch (error) {
-      toast.error("Failed to record transaction.");
+      toast.error("فشل في تسجيل المعاملة.");
     }
   };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -119,7 +120,6 @@ const PurchasesPage = ({ onBack }) => {
       </div>
     );
   }
-
   const renderModal = () => {
     switch (modal) {
       case "addName":
@@ -155,9 +155,7 @@ const PurchasesPage = ({ onBack }) => {
       case "purchase":
         const isCredit = modal === "credit";
         const themeColor = isCredit ? "green" : "red";
-        const title = isCredit
-          ? "إضافة رصيد (Credit)"
-          : "تسجيل مشتريات (Purchase)";
+        const title = isCredit ? "إضافة مبلغ" : "تسجيل المشتريات";
         return (
           <div
             className={`bg-white rounded-xl shadow-2xl p-6 w-[90%] max-w-lg border-t-4 border-${themeColor}-500`}
@@ -233,7 +231,7 @@ const PurchasesPage = ({ onBack }) => {
                 className={`bg-${themeColor}-600 text-white px-4 py-2 rounded hover:bg-${themeColor}-700`}
                 onClick={() => handleTransaction(modal)}
               >
-                حفظ العملية
+                حفظ
               </button>
             </div>
           </div>
@@ -242,7 +240,6 @@ const PurchasesPage = ({ onBack }) => {
         return null;
     }
   };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 30 }}
@@ -253,7 +250,7 @@ const PurchasesPage = ({ onBack }) => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-extrabold text-purple-700 flex items-center gap-3">
           <ShoppingCart size={40} />
-          إدارة المشتريات
+          العزبة الشهرية
         </h1>
         <button
           onClick={onBack}
@@ -265,7 +262,7 @@ const PurchasesPage = ({ onBack }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-lg text-center border-t-4 border-purple-500 col-span-1 md:col-span-3">
           <h2 className="text-lg font-bold text-gray-700 mb-2">
-            إجمالي النقدية المتوفرة
+            إجمالي النقد المتوفر
           </h2>
           <p
             className={`text-3xl font-bold ${
@@ -289,14 +286,14 @@ const PurchasesPage = ({ onBack }) => {
           className="bg-green-600 text-white px-5 py-2 rounded-xl hover:bg-green-700 shadow flex items-center gap-2"
         >
           <ArrowUpCircle size={20} />
-          إضافة رصيد
+          إضافة مبلغ
         </button>
         <button
           onClick={() => setModal("purchase")}
           className="bg-red-600 text-white px-5 py-2 rounded-xl hover:bg-red-700 shadow flex items-center gap-2"
         >
           <ArrowDownCircle size={20} />
-          تسجيل مشتريات
+          تسجيل المشتريات
         </button>
       </div>
       <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
@@ -308,7 +305,7 @@ const PurchasesPage = ({ onBack }) => {
             <thead className="bg-purple-100 text-purple-800 font-bold uppercase">
               <tr>
                 <th className="p-3">التاريخ</th>
-                <th className="p-3">النوع</th>
+                <th className="p-3">العملية</th>
                 <th className="p-3">المبلغ</th>
                 <th className="p-3">الاسم</th>
                 <th className="p-3">التفاصيل</th>
@@ -374,7 +371,422 @@ const PurchasesPage = ({ onBack }) => {
 };
 
 // ===================================================================================
-// MAIN APP COMPONENT (Shell with all logic restored)
+// MENUS PAGE COMPONENT
+// ===================================================================================
+const MenusPage = ({ onBack }) => {
+  const [view, setView] = useState("list");
+  const [shops, setShops] = useState([]);
+  const [selectedShop, setSelectedShop] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null);
+  const [newShopName, setNewShopName] = useState("");
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemPrice, setNewItemPrice] = useState("");
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingItemName, setEditingItemName] = useState("");
+  const [editingItemPrice, setEditingItemPrice] = useState("");
+
+  const fetchShops = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/menus/shops");
+      const data = await res.json();
+      setShops(data);
+    } catch (error) {
+      toast.error("فشل في عرض قائمة المقاهي");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchShops();
+  }, []);
+
+  const handleSelectShop = async (shop) => {
+    setSelectedShop(shop);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/menus/shops/${shop.id}`);
+      const data = await res.json();
+      setMenuItems(data.menu_items || []);
+      setView("details");
+    } catch (error) {
+      toast.error(`فشل في عرض قائمة الطعام لمقهى ${shop.name}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddShop = async () => {
+    if (!newShopName.trim()) return toast.error("اكتب اسم المقهى");
+    try {
+      await fetch("/api/menus/shops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newShopName }),
+      });
+      toast.success(`تم إضافة مقهى '${newShopName}' بنجاح!`);
+      setNewShopName("");
+      setModal(null);
+      fetchShops();
+    } catch (error) {
+      toast.error("فشل في إضافة مقهى جديد");
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!newItemName.trim() || !newItemPrice || parseFloat(newItemPrice) <= 0)
+      return toast.error("الرجاء ادخال اسم وسعر صحيح.");
+    try {
+      await fetch(`/api/menus/shops/${selectedShop.id}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_name: newItemName,
+          price: parseFloat(newItemPrice),
+        }),
+      });
+      toast.success(`'${newItemName}' تم إضافته بنجاح لقائمة الطعام`);
+      setNewItemName("");
+      setNewItemPrice("");
+      setModal(null);
+      handleSelectShop(selectedShop);
+    } catch (error) {
+      toast.error("فشل في إضافة الصنف.");
+    }
+  };
+
+  const startEditing = (item) => {
+    setEditingItemId(item.id);
+    setEditingItemName(item.item_name);
+    setEditingItemPrice(item.price);
+  };
+  const cancelEditing = () => {
+    setEditingItemId(null);
+    setEditingItemName("");
+    setEditingItemPrice("");
+  };
+
+  const handleUpdateItem = async (itemId) => {
+    if (
+      !editingItemName.trim() ||
+      !editingItemPrice ||
+      parseFloat(editingItemPrice) <= 0
+    )
+      return toast.error("الرجاء ادخال اسم وسعر صحيح.");
+    try {
+      await fetch(`/api/menus/items/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_name: editingItemName,
+          price: parseFloat(editingItemPrice),
+        }),
+      });
+      toast.success("تم تحديث الصنف!");
+      cancelEditing();
+      handleSelectShop(selectedShop);
+    } catch (error) {
+      toast.error("فشل في تحديث الصنف.");
+    }
+  };
+
+  const handleDeleteItem = async (itemId) => {
+    if (window.confirm("هل أنت متأكد من رغبتك بحذف الصنف؟")) {
+      try {
+        await fetch(`/api/menus/items/${itemId}`, { method: "DELETE" });
+        toast.success("تم حذف الصنف بنجاح");
+        handleSelectShop(selectedShop);
+      } catch (error) {
+        toast.error("فشل في حذف الصنف");
+      }
+    }
+  };
+
+  const handleDeleteShop = async (shop) => {
+    if (
+      window.confirm(
+        `هل أنت متأكد من رغبتك بحذف مقهى "${shop.name}" مع جميع الأصناف بداخله؟ لا يمكن التراجع لاحقاً`
+      )
+    ) {
+      try {
+        await fetch(`/api/menus/shops/${shop.id}`, { method: "DELETE" });
+        toast.success(`مقهى "${shop.name}" تم حذفه بنجاح.`);
+        fetchShops();
+        setView("list");
+        setSelectedShop(null);
+      } catch (error) {
+        toast.error("فشل في حذف المقهى.");
+      }
+    }
+  };
+
+  const renderModals = () => {
+    if (modal === "addShop") {
+      return (
+        <div className="bg-white rounded-xl p-6 w-96 shadow-2xl border-t-4 border-yellow-500">
+          <h2 className="text-2xl font-bold text-yellow-600 mb-4 border-b pb-2">
+            إضافة مقهى جديد
+          </h2>
+          <input
+            type="text"
+            className="w-full border border-yellow-300 focus:ring-2 focus:ring-yellow-400 p-2 rounded mb-4"
+            value={newShopName}
+            placeholder="اكتب اسم المقهى"
+            onChange={(e) => setNewShopName(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+              onClick={() => setModal(null)}
+            >
+              إلغاء
+            </button>
+            <button
+              className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+              onClick={handleAddShop}
+            >
+              حفظ
+            </button>
+          </div>
+        </div>
+      );
+    }
+    if (modal === "addItem") {
+      return (
+        <div className="bg-white rounded-xl p-6 w-96 shadow-2xl border-t-4 border-teal-500">
+          <h2 className="text-2xl font-bold text-teal-600 mb-4 border-b pb-2">
+            إضافة عنصر للقائمة
+          </h2>
+          <div className="space-y-4">
+            <input
+              type="text"
+              className="w-full border border-teal-300 focus:ring-2 focus:ring-teal-400 p-2 rounded"
+              value={newItemName}
+              placeholder="اسم الصنف"
+              onChange={(e) => setNewItemName(e.target.value)}
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="w-full border border-teal-300 focus:ring-2 focus:ring-teal-400 p-2 rounded"
+              value={newItemPrice}
+              placeholder="السعر"
+              onChange={(e) => setNewItemPrice(e.target.value)}
+            />
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <button
+              className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+              onClick={() => setModal(null)}
+            >
+              إلغاء
+            </button>
+            <button
+              className="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700"
+              onClick={handleAddItem}
+            >
+              حفظ الصنف
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      {view === "list" ? (
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-4xl font-extrabold text-yellow-700 flex items-center gap-3">
+              <Coffee size={40} />
+              قوائم الطعام
+            </h1>
+            <button
+              onClick={onBack}
+              className="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 shadow"
+            >
+              العودة للرئيسية
+            </button>
+          </div>
+          <div className="flex justify-center mb-8">
+            <button
+              onClick={() => setModal("addShop")}
+              className="bg-yellow-600 text-white px-6 py-3 rounded-xl hover:bg-yellow-700 shadow-lg flex items-center gap-2 text-lg"
+            >
+              <PlusCircle size={22} />
+              إضافة مقهى جديد
+            </button>
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader className="w-16 h-16 text-yellow-600 animate-spin" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {shops.map((shop) => (
+                <motion.div
+                  key={shop.id}
+                  whileHover={{ y: -5, scale: 1.05 }}
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden border-b-4 border-yellow-400 group"
+                >
+                  <div
+                    className="p-6 text-center cursor-pointer"
+                    onClick={() => handleSelectShop(shop)}
+                  >
+                    <h2 className="text-2xl font-bold text-gray-800">
+                      {shop.name}
+                    </h2>
+                  </div>
+                  <div className="p-2 bg-gray-50 text-center">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteShop(shop);
+                      }}
+                      className="text-red-500 hover:text-red-700 font-semibold text-sm"
+                    >
+                      حذف المقهى
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-4xl font-extrabold text-teal-700 flex items-center gap-3">
+              <Utensils size={40} />
+              قائمة: {selectedShop.name}
+            </h1>
+            <button
+              onClick={() => setView("list")}
+              className="bg-yellow-600 text-white px-5 py-2 rounded-xl hover:bg-yellow-700 shadow"
+            >
+              العودة للمقاهي
+            </button>
+          </div>
+          <div className="flex justify-center mb-8">
+            <button
+              onClick={() => setModal("addItem")}
+              className="bg-teal-600 text-white px-6 py-3 rounded-xl hover:bg-teal-700 shadow-lg flex items-center gap-2 text-lg"
+            >
+              <PlusCircle size={22} />
+              إضافة صنف جديد
+            </button>
+          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader className="w-16 h-16 text-teal-600 animate-spin" />
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-lg p-4">
+              <div className="divide-y divide-gray-200">
+                {menuItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-4 p-3 hover:bg-gray-50/75 transition-colors duration-150"
+                  >
+                    {editingItemId === item.id ? (
+                      <>
+                        <input
+                          type="text"
+                          value={editingItemName}
+                          onChange={(e) => setEditingItemName(e.target.value)}
+                          className="flex-grow border border-teal-300 rounded-md px-3 py-1 text-lg"
+                          placeholder="اسم الصنف"
+                        />
+                        <input
+                          type="number"
+                          value={editingItemPrice}
+                          onChange={(e) => setEditingItemPrice(e.target.value)}
+                          className="w-32 border border-teal-300 rounded-md px-3 py-1 text-lg"
+                          placeholder="السعر"
+                        />
+                        <button
+                          onClick={() => handleUpdateItem(item.id)}
+                          className="p-2 text-green-600 hover:text-green-800"
+                        >
+                          <Save size={20} />
+                        </button>
+                        <button
+                          onClick={cancelEditing}
+                          className="p-2 text-gray-500 hover:text-gray-800"
+                        >
+                          <X size={20} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-grow text-lg text-gray-700">
+                          {item.item_name}
+                        </span>
+                        <span className="font-bold text-teal-600 bg-teal-100 px-3 py-1 rounded-full">
+                          {item.price.toFixed(3)}
+                        </span>
+                        <button
+                          onClick={() => startEditing(item)}
+                          className="p-2 text-blue-500 hover:text-blue-700"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteItem(item.id)}
+                          className="p-2 text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+                {menuItems.length === 0 && (
+                  <p className="text-center text-gray-500 py-4">
+                    القائمة حالياً فارغة
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <AnimatePresence>
+        {modal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setModal(null)}
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {renderModals()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+// ===================================================================================
+// MAIN APP COMPONENT
 // ===================================================================================
 export default function App() {
   const [view, setView] = useState("main");
@@ -423,7 +835,6 @@ export default function App() {
       data.filter((p) => !p.deleted).map((p) => ({ id: p.id, amount: "" }))
     );
   };
-
   const loadAllTx = async () => {
     const res = await fetch("/api/transactions");
     const data = await res.json();
@@ -444,7 +855,6 @@ export default function App() {
     }
   }, [view]);
 
-  // ✨ FIX: ALL HANDLER LOGIC IS NOW FULLY RESTORED ✨
   const handleCardClick = (name) => {
     setFilterName((prev) => (prev === name ? "" : name));
   };
@@ -458,7 +868,7 @@ export default function App() {
       return toast.error(
         "يجب أن يكون إجمالي المدفوع من المشاركين مساوياً لإجمالي الفاتورة"
       );
-    if (!payerId) return toast.error("الرجاء اختيار الدافع أولاً");
+    if (!payerId) return toast.error("الرجاء تحديد من قام بدفع الفاتورة");
     const date = new Date(billDate.startDate).toISOString().split("T")[0];
     const payerName =
       participants.find((p) => String(p.id) === String(payerId))?.name || "";
@@ -524,7 +934,6 @@ export default function App() {
     await loadParticipants();
     await loadAllTx();
   };
-
   const handleCredit = async () => {
     const date = new Date(creditDate.startDate).toISOString().split("T")[0];
     const participant = participants.find((p) => p.id === creditId);
@@ -547,13 +956,13 @@ export default function App() {
     await loadAllTx();
     toast.success(
       <span>
-        تمت إضافة{" "}
-        <span className="text-green-600 font-bold">{creditAmount}</span> إلى{" "}
+        تم إيداع{" "}
+        <span className="text-green-600 font-bold">{creditAmount}</span> ريال
+        إلى حساب{" "}
         <span className="text-indigo-600 font-bold">{participant?.name}</span>
       </span>
     );
   };
-
   const handleDebit = async () => {
     const date = new Date(debitDate.startDate).toISOString().split("T")[0];
     const participant = participants.find((p) => p.id === debitId);
@@ -572,12 +981,12 @@ export default function App() {
     await loadAllTx();
     toast.error(
       <span>
-        تم خصم <span className="text-red-600 font-bold">{debitAmount}</span> من{" "}
+        تم خصم <span className="text-red-600 font-bold">{debitAmount}</span>{" "}
+        ريال من حساب{" "}
         <span className="text-indigo-600 font-bold">{participant?.name}</span>
       </span>
     );
   };
-
   const handleDelete = async () => {
     if (deletePassword !== "123456")
       return toast.error("كلمة المرور غير صحيحة");
@@ -594,7 +1003,6 @@ export default function App() {
     await loadParticipants();
     await loadAllTx();
   };
-
   const handleFilterDateChange = (newValue) => {
     if (!newValue.startDate) {
       setFilterDate(null);
@@ -620,7 +1028,6 @@ export default function App() {
       }),
     [allTx, filterName, filterDate]
   );
-
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const paged = filtered.slice(
     (currentPage - 1) * itemsPerPage,
@@ -655,9 +1062,9 @@ export default function App() {
             >
               <div className="max-w-5xl mx-auto space-y-6">
                 <h1 className="text-4xl font-extrabold text-center text-indigo-700 mb-10">
-                  تطبيق إدارة المشاركين
+                  تطبيق إدارة العزبة
                 </h1>
-                <div className="flex justify-center gap-4 mb-8">
+                <div className="flex flex-wrap justify-center gap-4 mb-8">
                   <button
                     className="bg-green-600 text-white px-5 py-2 rounded-xl hover:bg-green-700 shadow"
                     onClick={() => setAdding(true)}
@@ -675,13 +1082,20 @@ export default function App() {
                     onClick={() => setView("purchases")}
                   >
                     <ShoppingCart size={20} />
-                    إدارة المشتريات
+                    العزبة الشهرية
+                  </button>
+                  <button
+                    className="bg-yellow-600 text-white px-5 py-2 rounded-xl hover:bg-yellow-700 shadow flex items-center gap-2"
+                    onClick={() => setView("menus")}
+                  >
+                    <Coffee size={20} />
+                    قوائم الطعام
                   </button>
                 </div>
                 <div className="flex justify-center mb-10">
                   <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-indigo-500">
                     <h2 className="text-lg font-bold text-gray-700 mb-2">
-                      إجمالي الرصيد الإيجابي
+                      إجمالي المبلغ في الصندوق
                     </h2>
                     <p className="text-2xl text-green-600 font-bold">
                       {totalPositiveBalance.toFixed(2)}
@@ -703,7 +1117,7 @@ export default function App() {
                         {p.name}
                       </h2>
                       <p className="text-lg mb-3">
-                        الرصيد:
+                        في حسابه:
                         <span
                           className={`font-bold ${
                             p.balance < 0 ? "text-red-600" : "text-green-600"
@@ -721,7 +1135,7 @@ export default function App() {
                             setCreditId(p.id);
                           }}
                         >
-                          💰 رصيد
+                          💰 إيداع
                         </button>
                         <button
                           className="flex-1 bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 text-sm"
@@ -745,8 +1159,6 @@ export default function App() {
                     </motion.div>
                   ))}
                 </div>
-
-                {/* ✨ FIX: TRANSACTIONS TABLE JSX IS NOW FULLY RESTORED ✨ */}
                 <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
                   <h2 className="text-2xl font-bold text-gray-800 mb-4">
                     سجل المعاملات
@@ -785,9 +1197,7 @@ export default function App() {
                             handleFilterDateChange({ startDate: null })
                           }
                           className="absolute top-1/2 left-10 transform -translate-y-1/2"
-                        >
-                          <XCircle className="text-red-500 w-5 h-5" />
-                        </button>
+                        ></button>
                       )}
                     </div>
                     <select
@@ -795,10 +1205,9 @@ export default function App() {
                       onChange={(e) => setItemsPerPage(Number(e.target.value))}
                       className="px-3 py-2 rounded-lg border w-full md:w-auto focus:ring-2 focus:ring-indigo-300"
                     >
-                      <option value={5}>5 لكل صفحة</option>
-                      <option value={10}>10 لكل صفحة</option>
-                      <option value={20}>20 لكل صفحة</option>
-                      <option value={50}>50 لكل صفحة</option>
+                      <option value={10}>عرض 10 نتائج</option>
+                      <option value={30}>عرض 30 نتيجة</option>
+                      <option value={100}>عرض 100 نتيجة</option>
                     </select>
                   </div>
                   <div className="overflow-x-auto">
@@ -815,7 +1224,7 @@ export default function App() {
                             المبلغ
                           </th>
                           <th className="p-3 border-b-2 border-indigo-200">
-                            المحل
+                            التفاصيل
                           </th>
                         </tr>
                       </thead>
@@ -826,7 +1235,7 @@ export default function App() {
                               colSpan={4}
                               className="text-center py-10 text-gray-500"
                             >
-                              لا توجد معاملات مطابقة للمعايير المحددة.
+                              لا توجد معاملات مطابقة للبحث المستخدم.
                             </td>
                           </tr>
                         ) : (
@@ -892,8 +1301,6 @@ export default function App() {
                   )}
                 </div>
               </div>
-
-              {/* ✨ FIX: ALL 5 MODALS ARE NOW FULLY RESTORED ✨ */}
               <AnimatePresence>
                 {adding && (
                   <motion.div
@@ -911,7 +1318,7 @@ export default function App() {
                         type="text"
                         className="w-full border border-green-300 focus:ring-2 focus:ring-green-400 p-2 rounded mb-4"
                         value={name}
-                        placeholder="اكتب اسم المشارك"
+                        placeholder="اكتب اسم المشترك"
                         onChange={(e) => setName(e.target.value)}
                       />
                       <div className="flex justify-end gap-2">
@@ -973,14 +1380,14 @@ export default function App() {
                         </div>
                         <div>
                           <label className="block mb-1 text-sm font-medium text-gray-700">
-                            💸 الدافع
+                            💸 دفعت الفاتورة بواسطة
                           </label>
                           <select
                             className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
                             value={payerId}
                             onChange={(e) => setPayerId(e.target.value)}
                           >
-                            <option value="">اختر مشاركًا</option>
+                            <option value="">اختر من قام بدفع الفاتورة</option>
                             {participants.map((p) => (
                               <option key={p.id} value={p.id}>
                                 {p.name}
@@ -1061,7 +1468,7 @@ export default function App() {
                   >
                     <div className="bg-white rounded p-6 w-80">
                       <h3 className="mb-4 text-lg">
-                        إضافة رصيد لـ{" "}
+                        إضافة مبلغ لـ{" "}
                         {participants.find((p) => p.id === creditId)?.name}
                       </h3>
                       <div className="relative">
@@ -1083,7 +1490,7 @@ export default function App() {
                         value={creditAmount}
                         onChange={(e) => setCreditAmount(e.target.value)}
                       />
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
                         <button
                           className="bg-gray-300 px-4 py-2 rounded mr-2 hover:bg-gray-400"
                           onClick={() => setCreditId(null)}
@@ -1094,7 +1501,7 @@ export default function App() {
                           className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
                           onClick={handleCredit}
                         >
-                          اعتماد
+                          إيداع
                         </button>
                       </div>
                     </div>
@@ -1112,7 +1519,7 @@ export default function App() {
                   >
                     <div className="bg-white rounded p-6 w-80 border-t-4 border-red-500">
                       <h3 className="mb-4 text-lg font-bold text-red-700">
-                        خصم رصيد من{" "}
+                        خصم مبلغ من حساب{" "}
                         {participants.find((p) => p.id === debitId)?.name}
                       </h3>
                       <div className="relative">
@@ -1134,7 +1541,7 @@ export default function App() {
                         value={debitAmount}
                         onChange={(e) => setDebitAmount(e.target.value)}
                       />
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
                         <button
                           className="bg-gray-300 px-4 py-2 rounded mr-2 hover:bg-gray-400"
                           onClick={() => setDebitId(null)}
@@ -1162,7 +1569,10 @@ export default function App() {
                     className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
                   >
                     <div className="bg-white rounded p-6 w-80">
-                      <h3 className="mb-4 text-lg">تأكيد الحذف</h3>
+                      <h3 className="mb-4 text-lg">
+                        تأكيد الحذف لـ{" "}
+                        {participants.find((p) => p.id === deleteId)?.name}
+                      </h3>
                       <p className="mb-2 text-sm text-gray-700">
                         أدخل كلمة المرور لحذف المشارك
                       </p>
@@ -1173,7 +1583,7 @@ export default function App() {
                         onChange={(e) => setDeletePassword(e.target.value)}
                         placeholder="كلمة المرور"
                       />
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-2">
                         <button
                           className="bg-gray-300 px-4 py-2 rounded mr-2 hover:bg-gray-400"
                           onClick={() => setDeleteId(null)}
@@ -1192,8 +1602,10 @@ export default function App() {
                 )}
               </AnimatePresence>
             </motion.div>
-          ) : (
+          ) : view === "purchases" ? (
             <PurchasesPage key="purchases" onBack={() => setView("main")} />
+          ) : (
+            <MenusPage key="menus" onBack={() => setView("main")} />
           )}
         </AnimatePresence>
       </div>
