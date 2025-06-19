@@ -40,6 +40,25 @@ db.serialize(() => {
       amount REAL,
       shop TEXT
     )`);
+  // --- START: New Tables for Purchases Feature ---
+  db.run(`
+    CREATE TABLE IF NOT EXISTS purchases_names (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    );
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS purchases_transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL, -- 'credit' or 'purchase'
+      amount REAL NOT NULL,
+      name_id INTEGER,
+      details TEXT,
+      FOREIGN KEY (name_id) REFERENCES purchases_names(id)
+    );
+  `);
+  // --- END: New Tables for Purchases Feature ---
 });
 
 app.use(express.json());
@@ -199,6 +218,85 @@ app.delete("/api/participants/:id", async (req, res) => {
     }
   );
 });
+
+// ===== START: New API Routes for Purchases Feature =====
+
+// --- Names for Purchases ---
+app.get("/api/purchases/names", (req, res) => {
+  db.all("SELECT * FROM purchases_names ORDER BY name", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post("/api/purchases/names", (req, res) => {
+  const { name } = req.body;
+  if (!name || !name.trim()) {
+    return res.status(400).json({ error: "Name is required" });
+  }
+  db.run(
+    "INSERT INTO purchases_names (name) VALUES (?)",
+    [name.trim()],
+    function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE constraint failed")) {
+          return res.status(409).json({ error: "Name already exists" });
+        }
+        return res.status(500).json({ error: err.message });
+      }
+      res.status(201).json({ id: this.lastID, name: name.trim() });
+    }
+  );
+});
+
+// --- Transactions for Purchases ---
+app.get("/api/purchases/transactions", (req, res) => {
+  db.all(
+    `
+    SELECT pt.id, pt.date, pt.type, pt.amount, pt.details, pn.name as name
+    FROM purchases_transactions pt
+    LEFT JOIN purchases_names pn ON pn.id = pt.name_id
+    ORDER BY pt.id DESC
+  `,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Calculate total cash
+      const totalCash = rows.reduce((acc, tx) => {
+        if (tx.type === "credit") return acc + tx.amount;
+        if (tx.type === "purchase") return acc - tx.amount;
+        return acc;
+      }, 0);
+
+      res.json({
+        transactions: rows,
+        totalCash: totalCash,
+      });
+    }
+  );
+});
+
+app.post("/api/purchases/transactions", (req, res) => {
+  const { date, type, amount, name_id, details } = req.body;
+  if (!date || !type || !amount) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+  if (type !== "credit" && type !== "purchase") {
+    return res.status(400).json({ error: "Invalid transaction type" });
+  }
+
+  db.run(
+    `INSERT INTO purchases_transactions (date, type, amount, name_id, details) VALUES (?, ?, ?, ?, ?)`,
+    [date, type, amount, name_id || null, details || null],
+    function (err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.status(201).json({ id: this.lastID });
+    }
+  );
+});
+
+// ===== END: New API Routes for Purchases Feature =====
 
 // Test
 // Fallback to serve index.html for React Router
