@@ -27,6 +27,14 @@ export default function App() {
     startDate: new Date().toISOString(),
     endDate: new Date().toISOString(),
   });
+  // START: NEW STATE FOR DEBIT MODAL
+  const [debitId, setDebitId] = useState(null);
+  const [debitAmount, setDebitAmount] = useState("");
+  const [debitDate, setDebitDate] = useState({
+    startDate: new Date().toISOString(),
+    endDate: new Date().toISOString(),
+  });
+  // END: NEW STATE FOR DEBIT MODAL
   const [allTx, setAllTx] = useState([]);
   const [deleteId, setDeleteId] = useState(null);
   const [deletePassword, setDeletePassword] = useState("");
@@ -97,7 +105,7 @@ export default function App() {
       return;
     }
     if (!payerId) {
-      toast.error("الرجاء اختيار الدافع أولاً");
+      toast.error("الرجاء تحديد من قام بدفع الفاتورة");
       return;
     }
 
@@ -178,7 +186,11 @@ export default function App() {
     await fetch(`/api/participants/${creditId}/credit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(creditAmount), date }),
+      body: JSON.stringify({
+        amount: parseFloat(creditAmount),
+        date,
+        shop: "إيداع في الحساب",
+      }),
     });
     setCreditId(null);
     setCreditAmount("");
@@ -196,6 +208,33 @@ export default function App() {
       </span>
     );
   };
+
+  // START: NEW FUNCTION TO HANDLE DEBIT
+  const handleDebit = async () => {
+    const date = new Date(debitDate.startDate).toISOString().split("T")[0];
+    const participant = participants.find((p) => p.id === debitId);
+    await fetch(`/api/participants/${debitId}/debit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: parseFloat(debitAmount), date }),
+    });
+    setDebitId(null);
+    setDebitAmount("");
+    setDebitDate({
+      startDate: new Date().toISOString(),
+      endDate: new Date().toISOString(),
+    });
+    await loadParticipants();
+    await loadAllTx();
+    toast.error(
+      // Using toast.error for visual distinction
+      <span>
+        تم خصم <span className="text-red-600 font-bold">{debitAmount}</span> من{" "}
+        <span className="text-indigo-600 font-bold">{participant?.name}</span>
+      </span>
+    );
+  };
+  // END: NEW FUNCTION TO HANDLE DEBIT
 
   const handleDelete = async () => {
     if (deletePassword !== "123456")
@@ -274,7 +313,7 @@ export default function App() {
       >
         <div className="max-w-5xl mx-auto space-y-6">
           <h1 className="text-4xl font-extrabold text-center text-indigo-700 mb-10">
-            تطبيق إدارة المشاركين
+            إدارة العزبة{" "}
           </h1>
 
           <div className="flex justify-center gap-4 mb-8">
@@ -295,7 +334,7 @@ export default function App() {
           <div className="flex justify-center mb-10">
             <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-indigo-500">
               <h2 className="text-lg font-bold text-gray-700 mb-2">
-                إجمالي الرصيد الإيجابي
+                إجمالي المبلغ في الصندوق{" "}
               </h2>
               <p className="text-2xl text-green-600 font-bold">
                 {totalPositiveBalance.toFixed(2)}
@@ -325,7 +364,7 @@ export default function App() {
                   <p className="text-lg mb-3">
                     {" "}
                     {/* Added margin-bottom */}
-                    الرصيد:
+                    في حسابه:
                     <span
                       className={`font-bold ${
                         // Made font bold
@@ -336,28 +375,37 @@ export default function App() {
                       {p.balance.toFixed(2)}
                     </span>
                   </p>
-                  <div className="flex justify-between items-center pt-2 border-t">
+                  <div className="flex justify-between items-center pt-2 border-t gap-2">
                     {" "}
                     {/* Added border-top */}
                     <button
-                      className="bg-green-500 text-white px-3 py-1 rounded-md hover:bg-green-600 text-sm"
+                      className="flex-1 bg-green-500 text-white px-2 py-1 rounded-md hover:bg-green-600 text-sm"
                       // ✨ FIX: Add event (e) and call stopPropagation
                       onClick={(e) => {
                         e.stopPropagation();
                         setCreditId(p.id);
                       }}
                     >
-                      💰 رصيد
+                      💰 إيداع
                     </button>
                     <button
-                      className="text-red-600 text-sm font-bold hover:underline"
+                      className="flex-1 bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 text-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDebitId(p.id);
+                      }}
+                    >
+                      💸 خصم
+                    </button>
+                    <button
+                      className="text-gray-500 hover:text-red-600"
                       // ✨ FIX: Add event (e) and call stopPropagation
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteId(p.id);
                       }}
                     >
-                      حذف
+                      <XCircle size={20} />
                     </button>
                   </div>
                 </motion.div>
@@ -432,7 +480,9 @@ export default function App() {
                     </th>
                     <th className="p-3 border-b-2 border-indigo-200">الاسم</th>
                     <th className="p-3 border-b-2 border-indigo-200">المبلغ</th>
-                    <th className="p-3 border-b-2 border-indigo-200">المحل</th>
+                    <th className="p-3 border-b-2 border-indigo-200">
+                      التفاصيل
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -592,14 +642,14 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block mb-1 text-sm font-medium text-gray-700">
-                    💸 الدافع
+                    💸 من دفع الفاتورة
                   </label>
                   <select
                     className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
                     value={payerId}
                     onChange={(e) => setPayerId(e.target.value)}
                   >
-                    <option value="">اختر مشاركًا</option>
+                    <option value="">اختر من قام بدفع الفاتورة</option>
                     {participants.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
@@ -669,6 +719,112 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {creditId && (
+          // ... (Credit Modal remains the same)
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+          >
+            <div className="bg-white rounded p-6 w-80">
+              <h3 className="mb-4 text-lg">
+                إضافة مبلغ لـ{" "}
+                {participants.find((p) => p.id === creditId)?.name}
+              </h3>
+              <div className="relative">
+                <Datepicker
+                  asSingle={true}
+                  useRange={false}
+                  value={creditDate}
+                  onChange={setCreditDate}
+                  displayFormat="DD/MM/YYYY"
+                  inputClassName="w-full border p-2 mb-4 text-right rounded pl-10"
+                  toggleClassName="absolute left-0 h-full px-3 text-gray-400"
+                />
+              </div>
+              <input
+                type="number"
+                min="0"
+                className="w-full border p-2 mb-4 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                placeholder="المبلغ"
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+              />
+              <div className="flex justify-end">
+                <button
+                  className="bg-gray-300 px-4 py-2 rounded mr-2 hover:bg-gray-400"
+                  onClick={() => setCreditId(null)}
+                >
+                  إلغاء
+                </button>
+                <button
+                  className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  onClick={handleCredit}
+                >
+                  اعتماد
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* START: NEW MODAL FOR DEBIT */}
+      <AnimatePresence>
+        {debitId && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+          >
+            <div className="bg-white rounded p-6 w-80 border-t-4 border-red-500">
+              <h3 className="mb-4 text-lg font-bold text-red-700">
+                خصم مبلغ من {participants.find((p) => p.id === debitId)?.name}
+              </h3>
+              <div className="relative">
+                <Datepicker
+                  asSingle={true}
+                  useRange={false}
+                  value={debitDate}
+                  onChange={setDebitDate}
+                  displayFormat="DD/MM/YYYY"
+                  inputClassName="w-full border p-2 mb-4 text-right rounded pl-10 focus:ring-2 focus:ring-red-300"
+                  toggleClassName="absolute left-0 h-full px-3 text-gray-400"
+                />
+              </div>
+              <input
+                type="number"
+                min="0"
+                className="w-full border p-2 mb-4 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:ring-2 focus:ring-red-300"
+                placeholder="المبلغ المراد خصمه"
+                value={debitAmount}
+                onChange={(e) => setDebitAmount(e.target.value)}
+              />
+              <div className="flex justify-end">
+                <button
+                  className="bg-gray-300 px-4 py-2 rounded mr-2 hover:bg-gray-400"
+                  onClick={() => setDebitId(null)}
+                >
+                  إلغاء
+                </button>
+                <button
+                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  onClick={handleDebit}
+                >
+                  خصم المبلغ
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* END: NEW MODAL FOR DEBIT */}
 
       <AnimatePresence>
         {creditId && (

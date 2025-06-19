@@ -114,6 +114,51 @@ app.post("/api/participants/:id/credit", (req, res) => {
   });
 });
 
+// START: NEW CODE FOR DEBIT
+// Debit amount from a participant
+app.post("/api/participants/:id/debit", (req, res) => {
+  const id = Number(req.params.id);
+  const { amount, date } = req.body;
+  if (isNaN(amount) || !date || amount <= 0) {
+    // Ensure amount is positive
+    return res.status(400).json({ error: "Invalid amount" });
+  }
+
+  db.serialize(() => {
+    // Subtract from the balance
+    db.run(
+      `UPDATE participants
+       SET balance = balance - ?
+       WHERE id = ?`,
+      [amount, id],
+      function (err) {
+        if (err) return res.status(500).json({ error: err.message });
+        if (this.changes === 0)
+          return res.status(404).json({ error: "Participant not found" });
+
+        // Log the transaction with a negative amount and "Debited" as shop
+        db.run(
+          `INSERT INTO transactions (participant_id, date, amount, shop) VALUES (?, ?, ?, ?)`,
+          [id, date, -Math.abs(amount), "خصم نقدي من الحساب"], // Store amount as negative
+          (err2) => {
+            if (err2) console.warn("Transaction log failed", err2);
+            // Return updated participant
+            db.get(
+              "SELECT * FROM participants WHERE id = ?",
+              [id],
+              (err3, row) => {
+                if (err3) return res.status(500).json({ error: err3.message });
+                res.json(row);
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+});
+// END: NEW CODE FOR DEBIT
+
 app.get("/api/participants/:id/transactions", (req, res) => {
   const pid = Number(req.params.id);
   db.all(
