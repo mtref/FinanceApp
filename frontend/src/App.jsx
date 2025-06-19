@@ -96,7 +96,7 @@ const PurchasesPage = ({ onBack }) => {
         const err = await res.json();
         throw new Error(err.error || "فشل في كتابة الاسم");
       }
-      toast.success(`'${newName}'تمت إضافته بنجاح`);
+      toast.success(`'${newName}' تمت إضافته بنجاح`);
       resetForm();
       fetchData();
     } catch (error) {
@@ -205,6 +205,7 @@ const PurchasesPage = ({ onBack }) => {
                   step="0.001"
                   className={`w-full border border-gray-300 focus:ring-2 focus:ring-${themeColor}-400 p-2 rounded`}
                   value={formAmount}
+                  placeholder="المبلغ"
                   onChange={(e) => setFormAmount(e.target.value)}
                   onKeyDown={(e) =>
                     e.key === "Enter" && handleTransaction(modal)
@@ -292,7 +293,7 @@ const PurchasesPage = ({ onBack }) => {
               totalCash >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
-            {totalCash.toFixed(3)}
+            {(totalCash || 0).toFixed(3)}
           </p>
         </div>
       </div>
@@ -358,7 +359,7 @@ const PurchasesPage = ({ onBack }) => {
                       }`}
                     >
                       {tx.type === "credit" ? "+" : "-"}
-                      {tx.amount.toFixed(3)}
+                      {(tx.amount || 0).toFixed(3)}
                     </td>
                     <td className="p-3 text-gray-700">{tx.name || "---"}</td>
                     <td className="p-3 text-gray-600">{tx.details || "---"}</td>
@@ -483,7 +484,7 @@ const MenusPage = ({ onBack }) => {
 
   const handleAddItem = async () => {
     if (!newItemName.trim() || !newItemPrice || parseFloat(newItemPrice) <= 0)
-      return toast.error("الرجاء ادخال اسم وسعر صحيح.");
+      return toast.error("الرجاء ادخال اسم وسعر صحيح");
     try {
       await fetch(`/api/menus/shops/${selectedShop.id}/items`, {
         method: "POST",
@@ -520,7 +521,7 @@ const MenusPage = ({ onBack }) => {
       !editingItemPrice ||
       parseFloat(editingItemPrice) <= 0
     )
-      return toast.error("الرجاء ادخال اسم وسعر صحيح.");
+      return toast.error("الرجاء ادخال اسم وسعر صحيح");
     try {
       await fetch(`/api/menus/items/${itemId}`, {
         method: "PUT",
@@ -786,7 +787,7 @@ const MenusPage = ({ onBack }) => {
                           {item.item_name}
                         </span>
                         <span className="font-bold text-teal-600 bg-teal-100 px-3 py-1 rounded-full">
-                          {item.price.toFixed(3)}
+                          {(item.price || 0).toFixed(3)}
                         </span>
                         <button
                           onClick={() => startEditing(item)}
@@ -883,9 +884,6 @@ export default function App() {
   // New state for tax feature
   const [showTaxInput, setShowTaxInput] = useState(false);
   const [taxRate, setTaxRate] = useState("");
-
-  // New state for participant search
-  const [participantSearchTerm, setParticipantSearchTerm] = useState("");
 
   // Refs for auto-focus on main page modals
   const addParticipantInputRef = useRef(null);
@@ -1119,15 +1117,6 @@ export default function App() {
     setCurrentPage(1);
   };
 
-  const filteredParticipants = useMemo(() => {
-    if (!participantSearchTerm) {
-      return participants;
-    }
-    return participants.filter((p) =>
-      p.name.toLowerCase().includes(participantSearchTerm.toLowerCase())
-    );
-  }, [participants, participantSearchTerm]);
-
   const filtered = useMemo(
     () =>
       allTx.filter((tx) => {
@@ -1175,7 +1164,7 @@ export default function App() {
             >
               <div className="max-w-5xl mx-auto space-y-6">
                 <h1 className="text-4xl font-extrabold text-center text-indigo-700 mb-10">
-                  تطبيق إدارة العزبة
+                  إدارة العزبة
                 </h1>
                 <div className="flex flex-wrap justify-center gap-4 mb-8">
                   <button
@@ -1211,17 +1200,11 @@ export default function App() {
                       إجمالي المبلغ في الصندوق
                     </h2>
                     <p className="text-2xl text-green-600 font-bold">
-                      {totalPositiveBalance.toFixed(3)}
+                      {(totalPositiveBalance || 0).toFixed(3)}
                     </p>
                   </div>
                 </div>
-
-                {/* START: Participant Search */}
-                <div className="max-w-md mx-auto mb-6">
-                  {/* Search input removed */}
-                </div>
-                {/* END: Participant Search */}
-
+                
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-12">
                   {participants.map((p) => (
                     <motion.div
@@ -1248,7 +1231,7 @@ export default function App() {
                           }`}
                         >
                           {" "}
-                          {p.balance.toFixed(3)}
+                          {(p.balance || 0).toFixed(3)}
                         </span>
                       </p>
                       <div className="flex justify-between items-center pt-2 border-t gap-2">
@@ -1382,8 +1365,8 @@ export default function App() {
                                 }`}
                               >
                                 {tx.amount < 0
-                                  ? `- ${Math.abs(tx.amount).toFixed(3)}`
-                                  : `+ ${tx.amount.toFixed(3)}`}
+                                  ? `- ${Math.abs(tx.amount || 0).toFixed(3)}`
+                                  : `+ ${(tx.amount || 0).toFixed(3)}`}
                               </td>
                               <td className="p-3 border-b text-gray-600">
                                 {tx.shop}
@@ -1458,7 +1441,7 @@ export default function App() {
                           className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                           onClick={addParticipant}
                         >
-                          حفظ
+                          إضافة مشارك
                         </button>
                       </div>
                     </div>
@@ -1507,7 +1490,7 @@ export default function App() {
                         </div>
                         <div>
                           <label className="block mb-1 text-sm font-medium text-gray-700">
-                            💸 دفعت الفاتورة بواسطة
+                            💸 اختر من قام بدفع الفاتورة
                           </label>
                           <select
                             className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
@@ -1540,45 +1523,30 @@ export default function App() {
                         </div>
                       </div>
                       <div className="mt-6 border-t pt-4">
-                        {!showTaxInput ? (
-                          <button
-                            onClick={() => setShowTaxInput(true)}
-                            className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
-                          >
-                            <Percent size={16} />
-                            إضافة ضريبة
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
-                            <label className="text-sm font-medium">
-                              نسبة الضريبة:
-                            </label>
-                            <input
-                              ref={taxInputRef}
-                              type="number"
-                              value={taxRate}
-                              onChange={(e) => setTaxRate(e.target.value)}
-                              className="w-20 border-indigo-300 rounded-md p-1 focus:ring-2 focus:ring-indigo-400"
-                              placeholder="e.g., 5"
-                              onKeyDown={(e) =>
-                                e.key === "Enter" && handleApplyTax()
-                              }
-                            />
-                            <span>%</span>
-                            <button
-                              onClick={handleApplyTax}
-                              className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
-                            >
-                              تطبيق
+                         {!showTaxInput ? (
+                            <button onClick={() => setShowTaxInput(true)} className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1">
+                                <Percent size={16}/>
+                                إضافة ضريبة
                             </button>
-                            <button
-                              onClick={() => setShowTaxInput(false)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              <X size={20} />
-                            </button>
-                          </div>
-                        )}
+                         ) : (
+                            <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                                <label className="text-sm font-medium">
+                                  نسبة الضريبة:
+                                </label>
+                                <input
+                                    ref={taxInputRef}
+                                    type="number"
+                                    value={taxRate}
+                                    onChange={(e) => setTaxRate(e.target.value)}
+                                    className="w-20 border-indigo-300 rounded-md p-1 focus:ring-2 focus:ring-indigo-400"
+                                    placeholder="e.g., 5"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleApplyTax()}
+                                />
+                                <span>%</span>
+                                <button onClick={handleApplyTax} className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700">تطبيق</button>
+                                <button onClick={() => setShowTaxInput(false)} className="text-gray-500 hover:text-gray-700"><X size={20}/></button>
+                            </div>
+                         )}
                       </div>
                       <div className="mt-4">
                         <h3 className="text-lg font-semibold text-indigo-700 mb-3">
@@ -1641,7 +1609,7 @@ export default function App() {
                   >
                     <div className="bg-white rounded p-6 w-80">
                       <h3 className="mb-4 text-lg">
-                        إضافة مبلغ لـ{" "}
+                        إيداع مبلغ لـ{" "}
                         {participants.find((p) => p.id === creditId)?.name}
                       </h3>
                       <div className="relative">
@@ -1731,7 +1699,7 @@ export default function App() {
                           className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
                           onClick={handleDebit}
                         >
-                          خصم المبلغ
+                          خصم
                         </button>
                       </div>
                     </div>
