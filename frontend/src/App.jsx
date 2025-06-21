@@ -16,10 +16,53 @@ import {
   Save,
   X,
   Percent,
+  BarChart3,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
-// The CSS is now imported in main.jsx, so this line is removed.
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+
+// Helper function to format dates correctly, avoiding timezone issues.
+const toYYYYMMDD = (dateStr) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+// Component to format numbers with different styles for integer and decimal parts.
+const FormattedAmount = ({ value, mainSize = 'text-lg', decimalSize = 'text-base' }) => {
+  const num = Number(value) || 0;
+  const isNegative = num < 0;
+  const absValue = Math.abs(num);
+
+  const [integerPart, decimalPart] = absValue.toFixed(3).split('.');
+
+  return (
+    <span className="inline-flex items-baseline leading-none" dir="ltr">
+      {isNegative && <span className={mainSize}>-</span>}
+      <span className={mainSize}>{integerPart}</span>
+      <span className={`${decimalSize} opacity-70`}>.{decimalPart}</span>
+    </span>
+  );
+};
+
 
 // ===================================================================================
 // PURCHASES PAGE COMPONENT
@@ -32,8 +75,8 @@ const PurchasesPage = ({ onBack }) => {
   const [modal, setModal] = useState(null);
   const [newName, setNewName] = useState("");
   const [formDate, setFormDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [formAmount, setFormAmount] = useState("");
   const [formNameId, setFormNameId] = useState("");
@@ -101,8 +144,8 @@ const PurchasesPage = ({ onBack }) => {
   const resetForm = () => {
     setNewName("");
     setFormDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
+      startDate: new Date(),
+      endDate: new Date(),
     });
     setFormAmount("");
     setFormNameId("");
@@ -132,7 +175,7 @@ const PurchasesPage = ({ onBack }) => {
     if (!formAmount || parseFloat(formAmount) <= 0)
       return toast.error("الرجاء ادخال المبلغ.");
     const payload = {
-      date: new Date(formDate.startDate).toISOString().split("T")[0],
+      date: toYYYYMMDD(formDate.startDate),
       amount: parseFloat(formAmount),
       type: type,
       name_id: formNameId || null,
@@ -314,11 +357,11 @@ const PurchasesPage = ({ onBack }) => {
             إجمالي النقد المتوفر
           </h2>
           <p
-            className={`text-3xl font-bold ${
+            className={`font-bold ${
               totalCash >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
-            {(totalCash || 0).toFixed(3)}
+            <FormattedAmount value={totalCash} mainSize="text-3xl" decimalSize="text-2xl" />
           </p>
         </div>
       </div>
@@ -429,8 +472,8 @@ const PurchasesPage = ({ onBack }) => {
                         tx.type === "credit" ? "text-green-600" : "text-red-600"
                       }`}
                     >
-                      {tx.type === "credit" ? "+" : "-"}
-                      {(tx.amount || 0).toFixed(3)}
+                      {tx.type === "credit" ? "+" : "-"}{" "}
+                      <FormattedAmount value={tx.amount} mainSize="text-base" decimalSize="text-sm"/>
                     </td>
                     <td className="p-3 text-gray-700">{tx.name || "---"}</td>
                     <td className="p-3 text-gray-600">{tx.details || "---"}</td>
@@ -901,7 +944,7 @@ const MenusPage = ({ onBack }) => {
                           {item.item_name}
                         </span>
                         <span className="font-bold text-teal-600 bg-teal-100 px-3 py-1 rounded-full">
-                          {(item.price || 0).toFixed(3)}
+                          <FormattedAmount value={item.price} mainSize="text-base" decimalSize="text-sm"/>
                         </span>
                         <button
                           onClick={() => startEditing(item)}
@@ -999,6 +1042,204 @@ const MenusPage = ({ onBack }) => {
 };
 
 // ===================================================================================
+// DASHBOARD PAGE COMPONENT
+// ===================================================================================
+const DashboardPage = ({ onBack }) => {
+  const [loading, setLoading] = useState(true);
+  const [payerData, setPayerData] = useState([]);
+  const [timeData, setTimeData] = useState([]);
+  const [shopData, setShopData] = useState([]);
+  const [balanceData, setBalanceData] = useState([]);
+  const [avgSpendingData, setAvgSpendingData] = useState([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [payerRes, timeRes, shopRes, balanceRes, avgSpendingRes] = await Promise.all([
+          fetch("/api/dashboard/payer-summary"),
+          fetch("/api/dashboard/spending-over-time"),
+          fetch("/api/dashboard/spending-by-shop"),
+          fetch("/api/dashboard/balance-distribution"),
+          fetch("/api/dashboard/average-spending"),
+        ]);
+        const payerJson = await payerRes.json();
+        const timeJson = await timeRes.json();
+        const shopJson = await shopRes.json();
+        const balanceJson = await balanceRes.json();
+        const avgSpendingJson = await avgSpendingRes.json();
+
+        setPayerData(payerJson);
+        setTimeData(timeJson);
+        setShopData(shopJson);
+        setBalanceData(balanceJson);
+        setAvgSpendingData(avgSpendingJson);
+
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        toast.error("Failed to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+  const PIE_COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
+  const BALANCE_PIE_COLORS = { "مدين (عليه دين)": "#FF8042", "دائن (له رصيد)": "#00C49F" };
+
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader className="w-16 h-16 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="max-w-7xl mx-auto space-y-8"
+    >
+      <div className="flex justify-between items-center">
+        <h1 className="text-4xl font-extrabold text-gray-800 flex items-center gap-3">
+          <BarChart3 size={40} />
+          لوحة المعلومات
+        </h1>
+        <button
+          onClick={onBack}
+          className="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 shadow"
+        >
+          العودة للرئيسية
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Payer Contributions Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+          <h2 className="text-xl font-bold text-gray-700 mb-4">
+            إجمالي المدفوعات لكل مشارك
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={payerData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis tickMargin={10} />
+              <Tooltip
+                formatter={(value) => `${value.toFixed(3)}`}
+                cursor={{ fill: "rgba(238, 242, 255, 0.6)" }}
+              />
+              <Legend />
+              <Bar dataKey="total_paid" name="المبلغ المدفوع" fill="#4f46e5" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Spending by Shop Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+          <h2 className="text-xl font-bold text-gray-700 mb-4">
+            المصروفات حسب المتجر
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={shopData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={false}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="total_spent"
+                nameKey="shop"
+              >
+                {shopData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Balance Distribution Pie Chart */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg">
+            <h2 className="text-xl font-bold text-gray-700 mb-4">
+              توزيع أرصدة المشاركين
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={balanceData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={false}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="count"
+                  nameKey="status"
+                >
+                  {balanceData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={BALANCE_PIE_COLORS[entry.status]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value, name) => [`${value} مشارك`, name]} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Average Spending Bar Chart */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg">
+            <h2 className="text-xl font-bold text-gray-700 mb-4">
+              متوسط قيمة الفاتورة لكل مشارك
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={avgSpendingData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis tickMargin={10} />
+                <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
+                <Legend />
+                <Bar dataKey="avg_spent" name="متوسط الصرف" fill="#ffc658" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+      {/* Spending Over Time Chart */}
+      <div className="bg-white p-6 rounded-2xl shadow-lg">
+        <h2 className="text-xl font-bold text-gray-700 mb-4">المصروفات عبر الزمن</h2>
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={timeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis tickMargin={10} />
+            <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="total_spent"
+              name="إجمالي المصروفات"
+              stroke="#8884d8"
+              strokeWidth={2}
+              activeDot={{ r: 8 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </motion.div>
+  );
+};
+
+
+// ===================================================================================
 // MAIN APP COMPONENT
 // ===================================================================================
 export default function App() {
@@ -1008,8 +1249,8 @@ export default function App() {
   const [adding, setAdding] = useState(false);
   const [splitBill, setSplitBill] = useState(false);
   const [billDate, setBillDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [shopName, setShopName] = useState("");
   const [payerId, setPayerId] = useState("");
@@ -1018,14 +1259,14 @@ export default function App() {
   const [creditId, setCreditId] = useState(null);
   const [creditAmount, setCreditAmount] = useState("");
   const [creditDate, setCreditDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [debitId, setDebitId] = useState(null);
   const [debitAmount, setDebitAmount] = useState("");
   const [debitDate, setDebitDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [allTx, setAllTx] = useState([]);
   const [deleteId, setDeleteId] = useState(null);
@@ -1130,7 +1371,7 @@ export default function App() {
         "يجب أن يكون إجمالي المدفوع من المشاركين مساوياً لإجمالي الفاتورة"
       );
     if (!payerId) return toast.error("الرجاء تحديد من قام بدفع الفاتورة");
-    const date = new Date(billDate.startDate).toISOString().split("T")[0];
+    const date = toYYYYMMDD(billDate.startDate);
     const payerName =
       participants.find((p) => String(p.id) === String(payerId))?.name || "";
     try {
@@ -1202,7 +1443,7 @@ export default function App() {
       return toast.error("Please enter a valid positive amount.");
     }
 
-    const date = new Date(creditDate.startDate).toISOString().split("T")[0];
+    const date = toYYYYMMDD(creditDate.startDate);
     const participant = participants.find((p) => p.id === creditId);
     await fetch(`/api/participants/${creditId}/credit`, {
       method: "POST",
@@ -1226,8 +1467,8 @@ export default function App() {
     setCreditId(null);
     setCreditAmount("");
     setCreditDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
+      startDate: new Date(),
+      endDate: new Date(),
     });
   };
 
@@ -1237,7 +1478,7 @@ export default function App() {
       return toast.error("Please enter a valid positive amount.");
     }
 
-    const date = new Date(debitDate.startDate).toISOString().split("T")[0];
+    const date = toYYYYMMDD(debitDate.startDate);
     const participant = participants.find((p) => p.id === debitId);
     await fetch(`/api/participants/${debitId}/debit`, {
       method: "POST",
@@ -1256,8 +1497,8 @@ export default function App() {
     setDebitId(null);
     setDebitAmount("");
     setDebitDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
+      startDate: new Date(),
+      endDate: new Date(),
     });
   };
   const handleDelete = async () => {
@@ -1277,13 +1518,11 @@ export default function App() {
     setDeletePassword("");
   };
   const handleFilterDateChange = (newValue) => {
+    setFilterDateValue(newValue);
     if (!newValue.startDate) {
       setFilterDate(null);
-      setFilterDateValue({ startDate: null, endDate: null });
     } else {
-      const selected = new Date(newValue.startDate).toISOString().split("T")[0];
-      setFilterDateValue({ startDate: selected, endDate: selected });
-      setFilterDate(selected);
+      setFilterDate(toYYYYMMDD(newValue.startDate));
     }
     setCurrentPage(1);
   };
@@ -1364,6 +1603,13 @@ export default function App() {
                     <Coffee size={20} />
                     قوائم الطعام
                   </button>
+                   <button
+                    className="bg-blue-600 text-white px-5 py-2 rounded-xl hover:bg-blue-700 shadow flex items-center gap-2"
+                    onClick={() => setView("dashboard")}
+                  >
+                    <BarChart3 size={20} />
+                    لوحة المعلومات
+                  </button>
                 </div>
                 <div className="flex justify-center mb-10">
                   <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-indigo-500">
@@ -1371,7 +1617,7 @@ export default function App() {
                       إجمالي المبلغ في الصندوق
                     </h2>
                     <p className="text-2xl text-green-600 font-bold">
-                      {(totalPositiveBalance || 0).toFixed(3)}
+                      <FormattedAmount value={totalPositiveBalance} mainSize="text-2xl" decimalSize="text-xl" />
                     </p>
                   </div>
                 </div>
@@ -1402,7 +1648,7 @@ export default function App() {
                           }`}
                         >
                           {" "}
-                          {(p.balance || 0).toFixed(3)}
+                          <FormattedAmount value={p.balance} />
                         </span>
                       </p>
                       <div className="flex justify-between items-center pt-2 border-t gap-2">
@@ -1535,9 +1781,7 @@ export default function App() {
                                     : "text-green-600"
                                 }`}
                               >
-                                {tx.amount < 0
-                                  ? `- ${Math.abs(tx.amount || 0).toFixed(3)}`
-                                  : `+ ${(tx.amount || 0).toFixed(3)}`}
+                                {tx.amount < 0 ? `- ` : `+ `}<FormattedAmount value={Math.abs(tx.amount)} />
                               </td>
                               <td className="p-3 border-b text-gray-600">
                                 {tx.shop}
@@ -1924,8 +2168,10 @@ export default function App() {
             </motion.div>
           ) : view === "purchases" ? (
             <PurchasesPage key="purchases" onBack={() => setView("main")} />
-          ) : (
+          ) : view === "menus" ? (
             <MenusPage key="menus" onBack={() => setView("main")} />
+          ) : (
+            <DashboardPage key="dashboard" onBack={() => setView("main")} />
           )}
         </AnimatePresence>
       </div>

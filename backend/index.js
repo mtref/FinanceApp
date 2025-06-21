@@ -238,6 +238,88 @@ app.delete("/api/participants/:id", async (req, res) => {
   );
 });
 
+// ===== START: Dashboard API Routes =====
+app.get("/api/dashboard/payer-summary", (req, res) => {
+  const query = `
+    SELECT p.name, SUM(t.amount) as total_paid
+    FROM transactions t
+    JOIN participants p ON p.id = t.participant_id
+    WHERE t.amount > 0 AND p.deleted = 0
+    GROUP BY p.name
+    ORDER BY total_paid DESC;
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.get("/api/dashboard/spending-over-time", (req, res) => {
+  const query = `
+    SELECT date, SUM(ABS(amount)) as total_spent
+    FROM transactions
+    WHERE amount < 0
+    GROUP BY date
+    ORDER BY date ASC;
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.get("/api/dashboard/spending-by-shop", (req, res) => {
+  const query = `
+    SELECT shop, SUM(ABS(amount)) as total_spent
+    FROM transactions
+    WHERE amount < 0 AND shop != 'خصم نقدي من الحساب'
+    GROUP BY shop
+    ORDER BY total_spent DESC;
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.get("/api/dashboard/balance-distribution", (req, res) => {
+  const query = `
+    SELECT
+      CASE
+        WHEN balance < 0 THEN 'مدين (عليه دين)'
+        ELSE 'دائن (له رصيد)'
+      END as status,
+      COUNT(*) as count
+    FROM participants
+    WHERE deleted = 0 AND balance != 0
+    GROUP BY status;
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.get("/api/dashboard/average-spending", (req, res) => {
+  const query = `
+    SELECT
+      p.name,
+      AVG(ABS(t.amount)) as avg_spent
+    FROM transactions t
+    JOIN participants p ON p.id = t.participant_id
+    WHERE t.amount < 0 AND p.deleted = 0
+    GROUP BY p.name
+    ORDER BY avg_spent DESC;
+  `;
+  db.all(query, [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows.map(row => ({...row, avg_spent: parseFloat(row.avg_spent.toFixed(3))})));
+  });
+});
+
+// ===== END: Dashboard API Routes =====
+
+
 // ===== START: New API Routes for Purchases Feature =====
 
 // --- Names for Purchases ---
