@@ -3,9 +3,13 @@ const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const fs = require("fs");
+const cors = require("cors");
 
 const app = express();
 const PORT = 3000;
+
+// Use CORS middleware
+app.use(cors());
 
 // Ensure the data directory exists
 const dataDir = path.join(__dirname, "data");
@@ -111,7 +115,7 @@ app.post("/api/participants", (req, res) => {
 
 // Credit amount to a participant
 app.post("/api/participants/:id/credit", (req, res) => {
-  const id = Number(req.params.id); // ✅ Fix: define `id` first
+  const id = Number(req.params.id);
   const { amount, date } = req.body;
   if (isNaN(amount) || !date) {
     return res.status(400).json({ error: "Invalid amount" });
@@ -150,7 +154,6 @@ app.post("/api/participants/:id/credit", (req, res) => {
   });
 });
 
-// START: NEW CODE FOR DEBIT
 // Debit amount from a participant
 app.post("/api/participants/:id/debit", (req, res) => {
   const id = Number(req.params.id);
@@ -193,12 +196,11 @@ app.post("/api/participants/:id/debit", (req, res) => {
     );
   });
 });
-// END: NEW CODE FOR DEBIT
 
 app.get("/api/participants/:id/transactions", (req, res) => {
   const pid = Number(req.params.id);
   db.all(
-    "SELECT date, amount FROM transactions WHERE participant_id = ? ORDER BY date DESC",
+    "SELECT date, amount FROM transactions WHERE participant_id = ? ORDER BY date DESC, id DESC",
     [pid],
     (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -211,10 +213,10 @@ app.get("/api/participants/:id/transactions", (req, res) => {
 app.get("/api/transactions", (req, res) => {
   db.all(
     `
-    SELECT t.date, p.name, t.amount, t.shop
+    SELECT t.id, t.date, p.name, t.amount, t.shop
     FROM transactions t
     JOIN participants p ON p.id = t.participant_id
-    ORDER BY t.date DESC
+    ORDER BY t.date DESC, t.id DESC
   `,
     [],
     (err, rows) => {
@@ -273,7 +275,7 @@ app.get("/api/purchases/transactions", (req, res) => {
     SELECT pt.id, pt.date, pt.type, pt.amount, pt.details, pn.name as name
     FROM purchases_transactions pt
     LEFT JOIN purchases_names pn ON pn.id = pt.name_id
-    ORDER BY pt.id DESC
+    ORDER BY pt.date DESC, pt.id DESC
   `,
     [],
     (err, rows) => {
@@ -466,7 +468,6 @@ app.delete("/api/menus/shops/:shopId", (req, res) => {
 });
 // ===== END: New API Routes for Menus Feature =====
 
-// Test
 // Fallback to serve index.html for React Router
 app.get("*", (_, res) => {
   res.sendFile(path.resolve(__dirname, "frontend/dist/index.html"));

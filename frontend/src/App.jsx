@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+// The CSS is now imported in main.jsx, so this line is removed.
 
 // ===================================================================================
 // PURCHASES PAGE COMPONENT
@@ -38,6 +38,11 @@ const PurchasesPage = ({ onBack }) => {
   const [formAmount, setFormAmount] = useState("");
   const [formNameId, setFormNameId] = useState("");
   const [formDetails, setFormDetails] = useState("");
+
+  // State for pagination and filtering
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [filterType, setFilterType] = useState("all"); // 'all', 'purchase', 'credit'
 
   const addNameInputRef = useRef(null);
   const transactionAmountInputRef = useRef(null);
@@ -73,6 +78,26 @@ const PurchasesPage = ({ onBack }) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Filter and pagination calculations
+  const filteredTransactions = useMemo(() => {
+    if (filterType === "all") {
+      return transactions;
+    }
+    return transactions.filter((tx) => tx.type === filterType);
+  }, [transactions, filterType]);
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
+  const pagedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleFilterChange = (type) => {
+    setFilterType(type);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   const resetForm = () => {
     setNewName("");
     setFormDate({
@@ -321,9 +346,55 @@ const PurchasesPage = ({ onBack }) => {
         </button>
       </div>
       <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          سجل الحركات المالية
-        </h2>
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+          <h2 className="text-2xl font-bold text-gray-800">
+            سجل الحركات المالية
+          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleFilterChange("all")}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                filterType === "all"
+                  ? "bg-purple-600 text-white shadow"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              الكل
+            </button>
+            <button
+              onClick={() => handleFilterChange("purchase")}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                filterType === "purchase"
+                  ? "bg-red-600 text-white shadow"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              شراء فقط
+            </button>
+            <button
+              onClick={() => handleFilterChange("credit")}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                filterType === "credit"
+                  ? "bg-green-600 text-white shadow"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              إيداع فقط
+            </button>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1); // Reset to first page when items per page changes
+              }}
+              className="px-3 py-2 rounded-lg border bg-white focus:ring-2 focus:ring-purple-300"
+            >
+              <option value={10}>10 لكل صفحة</option>
+              <option value={20}>20 لكل صفحة</option>
+              <option value={50}>50 لكل صفحة</option>
+            </select>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right border-collapse">
             <thead className="bg-purple-100 text-purple-800 font-bold uppercase">
@@ -336,14 +407,14 @@ const PurchasesPage = ({ onBack }) => {
               </tr>
             </thead>
             <tbody>
-              {transactions.length === 0 ? (
+              {pagedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="text-center py-10 text-gray-500">
-                    لا توجد حركات مسجلة.
+                    لا توجد حركات مسجلة تطابق الفلتر.
                   </td>
                 </tr>
               ) : (
-                transactions.map((tx) => (
+                pagedTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-purple-50 border-b">
                     <td className="p-3">{tx.date}</td>
                     <td className="p-3 font-semibold">
@@ -369,6 +440,31 @@ const PurchasesPage = ({ onBack }) => {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center gap-3 mt-6 pt-4 border-t">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-purple-500 hover:text-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={18} />
+              <span>السابق</span>
+            </button>
+            <span className="text-gray-700 font-medium">
+              صفحة {currentPage} من {totalPages}
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-purple-500 hover:text-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              <span>التالي</span>
+              <ChevronLeft size={18} />
+            </button>
+          </div>
+        )}
       </div>
       <AnimatePresence>
         {modal && (
@@ -410,6 +506,13 @@ const MenusPage = ({ onBack }) => {
   const [editingItemId, setEditingItemId] = useState(null);
   const [editingItemName, setEditingItemName] = useState("");
   const [editingItemPrice, setEditingItemPrice] = useState("");
+  // New state for confirmation modal
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   const addShopInputRef = useRef(null);
   const addItemNameInputRef = useRef(null);
@@ -539,34 +642,45 @@ const MenusPage = ({ onBack }) => {
     }
   };
 
-  const handleDeleteItem = async (itemId) => {
-    if (window.confirm("هل أنت متأكد من رغبتك بحذف الصنف؟")) {
-      try {
-        await fetch(`/api/menus/items/${itemId}`, { method: "DELETE" });
-        toast.success("تم حذف الصنف بنجاح");
-        handleSelectShop(selectedShop);
-      } catch (error) {
-        toast.error("فشل في حذف الصنف");
-      }
-    }
+  const handleDeleteItem = (itemId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "تأكيد الحذف",
+      message: "هل أنت متأكد من رغبتك بحذف هذا الصنف؟",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/menus/items/${itemId}`, { method: "DELETE" });
+          toast.success("تم حذف الصنف بنجاح");
+          handleSelectShop(selectedShop); // Refreshes the list
+        } catch (error) {
+          toast.error("فشل في حذف الصنف");
+        } finally {
+          setConfirmModal({ isOpen: false }); // Close modal
+        }
+      },
+    });
   };
 
-  const handleDeleteShop = async (shop) => {
-    if (
-      window.confirm(
-        `هل أنت متأكد من رغبتك بحذف مقهى "${shop.name}" مع جميع الأصناف بداخله؟ لا يمكن التراجع لاحقاً`
-      )
-    ) {
-      try {
-        await fetch(`/api/menus/shops/${shop.id}`, { method: "DELETE" });
-        toast.success(`مقهى "${shop.name}" تم حذفه بنجاح.`);
-        fetchShops();
-        setView("list");
-        setSelectedShop(null);
-      } catch (error) {
-        toast.error("فشل في حذف المقهى.");
-      }
-    }
+  const handleDeleteShop = (shop) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `حذف مقهى "${shop.name}"`,
+      message:
+        "هل أنت متأكد من رغبتك بحذف المقهى مع جميع الأصناف بداخله؟ لا يمكن التراجع لاحقاً",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/menus/shops/${shop.id}`, { method: "DELETE" });
+          toast.success(`مقهى "${shop.name}" تم حذفه بنجاح.`);
+          fetchShops();
+          setView("list");
+          setSelectedShop(null);
+        } catch (error) {
+          toast.error("فشل في حذف المقهى.");
+        } finally {
+          setConfirmModal({ isOpen: false });
+        }
+      },
+    });
   };
 
   const renderModals = () => {
@@ -835,6 +949,51 @@ const MenusPage = ({ onBack }) => {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
+            onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl p-6 w-96 max-w-full shadow-2xl border-t-4 border-red-500"
+            >
+              <h2 className="text-xl font-bold text-red-600 mb-4 border-b pb-2">
+                {confirmModal.title}
+              </h2>
+              <p className="text-gray-700 mb-6">{confirmModal.message}</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+                  onClick={() =>
+                    setConfirmModal({ ...confirmModal, isOpen: false })
+                  }
+                >
+                  إلغاء
+                </button>
+                <button
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                  onClick={() => {
+                    if (confirmModal.onConfirm) {
+                      confirmModal.onConfirm();
+                    }
+                  }}
+                >
+                  تأكيد الحذف
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -1036,14 +1195,20 @@ export default function App() {
     await loadParticipants();
     await loadAllTx();
   };
+
   const handleCredit = async () => {
+    const amount = parseFloat(creditAmount);
+    if (isNaN(amount) || amount <= 0) {
+      return toast.error("Please enter a valid positive amount.");
+    }
+
     const date = new Date(creditDate.startDate).toISOString().split("T")[0];
     const participant = participants.find((p) => p.id === creditId);
     await fetch(`/api/participants/${creditId}/credit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        amount: parseFloat(creditAmount),
+        amount: amount,
         date,
         shop: "إيداع في الحساب",
       }),
@@ -1065,13 +1230,19 @@ export default function App() {
       endDate: new Date().toISOString(),
     });
   };
+
   const handleDebit = async () => {
+    const amount = parseFloat(debitAmount);
+    if (isNaN(amount) || amount <= 0) {
+      return toast.error("Please enter a valid positive amount.");
+    }
+
     const date = new Date(debitDate.startDate).toISOString().split("T")[0];
     const participant = participants.find((p) => p.id === debitId);
     await fetch(`/api/participants/${debitId}/debit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(debitAmount), date }),
+      body: JSON.stringify({ amount: amount, date }),
     });
     await loadParticipants();
     await loadAllTx();
@@ -1152,7 +1323,7 @@ export default function App() {
     <>
       <div
         dir="rtl"
-        className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-10 px-4 el-messiri"
+        className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-10 px-4"
       >
         <AnimatePresence mode="wait">
           {view === "main" ? (
@@ -1523,12 +1694,12 @@ export default function App() {
                         </div>
                       </div>
                       <div className="mt-6 border-t pt-4">
-                         {!showTaxInput ? (
+                          {!showTaxInput ? (
                             <button onClick={() => setShowTaxInput(true)} className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1">
                                 <Percent size={16}/>
                                 إضافة ضريبة
                             </button>
-                         ) : (
+                          ) : (
                             <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
                                 <label className="text-sm font-medium">
                                   نسبة الضريبة:
@@ -1546,7 +1717,7 @@ export default function App() {
                                 <button onClick={handleApplyTax} className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700">تطبيق</button>
                                 <button onClick={() => setShowTaxInput(false)} className="text-gray-500 hover:text-gray-700"><X size={20}/></button>
                             </div>
-                         )}
+                          )}
                       </div>
                       <div className="mt-4">
                         <h3 className="text-lg font-semibold text-indigo-700 mb-3">
