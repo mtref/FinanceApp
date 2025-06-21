@@ -17,6 +17,11 @@ import {
   X,
   Percent,
   BarChart3,
+  FileDown,
+  User,
+  Calendar,
+  Wallet,
+  Users
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
@@ -35,6 +40,8 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import * as XLSX from "xlsx";
+
 
 // Helper function to format dates correctly, avoiding timezone issues.
 const toYYYYMMDD = (dateStr) => {
@@ -139,6 +146,18 @@ const PurchasesPage = ({ onBack }) => {
   const handleFilterChange = (type) => {
     setFilterType(type);
     setCurrentPage(1); // Reset to first page when filter changes
+  };
+
+  const handleExport = () => {
+    const dataToExport = filteredTransactions.map(({ id, ...rest }) => ({
+      ...rest,
+      type: rest.type === 'credit' ? 'إيداع' : 'شراء',
+      amount: rest.type === 'credit' ? rest.amount : -rest.amount,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Purchases");
+    XLSX.writeFile(workbook, "purchases_transactions.xlsx");
   };
 
   const resetForm = () => {
@@ -436,6 +455,13 @@ const PurchasesPage = ({ onBack }) => {
               <option value={20}>20 لكل صفحة</option>
               <option value={50}>50 لكل صفحة</option>
             </select>
+             <button
+              onClick={handleExport}
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 shadow flex items-center gap-2"
+            >
+              <FileDown size={18} />
+              تصدير
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -1280,6 +1306,11 @@ export default function App() {
     endDate: null,
   });
   const [loading, setLoading] = useState(true);
+  const [billDetails, setBillDetails] = useState({
+    isOpen: false,
+    loading: false,
+    data: null
+  });
 
   // New state for tax feature
   const [showTaxInput, setShowTaxInput] = useState(false);
@@ -1361,6 +1392,27 @@ export default function App() {
     setFilterName((prev) => (prev === name ? "" : name));
   };
 
+  const handleShopClick = async (shop, date) => {
+    if (shop === "إيداع في الحساب" || shop === "خصم نقدي من الحساب") {
+        return;
+    }
+
+    setBillDetails({ isOpen: true, loading: true, data: null });
+
+    try {
+        const res = await fetch(`/api/bill-details?shop=${encodeURIComponent(shop)}&date=${date}`);
+        if (!res.ok) {
+            throw new Error("Could not fetch bill details.");
+        }
+        const data = await res.json();
+        setBillDetails({ isOpen: true, loading: false, data: data });
+    } catch (error) {
+        console.error(error);
+        toast.error("Failed to load bill details.");
+        setBillDetails({ isOpen: false, loading: false, data: null });
+    }
+  };
+  
   const handleSplitBillSubmit = async () => {
     const totalPaid = contributions.reduce(
       (sum, c) => sum + parseFloat(c.amount || 0),
@@ -1763,31 +1815,37 @@ export default function App() {
                             </td>
                           </tr>
                         ) : (
-                          paged.map((tx, i) => (
-                            <tr
-                              key={`${tx.id}-${i}`}
-                              className={`hover:bg-indigo-50 transition-colors duration-200 ${
-                                i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                              }`}
-                            >
-                              <td className="p-3 border-b">{tx.date}</td>
-                              <td className="p-3 border-b font-medium text-gray-800">
-                                {tx.name}
-                              </td>
-                              <td
-                                className={`p-3 border-b font-semibold ${
-                                  tx.amount < 0
-                                    ? "text-red-600"
-                                    : "text-green-600"
+                          paged.map((tx, i) => {
+                            const isClickableShop = tx.shop !== "إيداع في الحساب" && tx.shop !== "خصم نقدي من الحساب";
+                            return (
+                                <tr
+                                key={`${tx.id}-${i}`}
+                                className={`hover:bg-indigo-50 transition-colors duration-200 ${
+                                    i % 2 === 0 ? "bg-white" : "bg-gray-50"
                                 }`}
-                              >
-                                {tx.amount < 0 ? `- ` : `+ `}<FormattedAmount value={Math.abs(tx.amount)} />
-                              </td>
-                              <td className="p-3 border-b text-gray-600">
-                                {tx.shop}
-                              </td>
-                            </tr>
-                          ))
+                                >
+                                <td className="p-3 border-b">{tx.date}</td>
+                                <td className="p-3 border-b font-medium text-gray-800">
+                                    {tx.name}
+                                </td>
+                                <td
+                                    className={`p-3 border-b font-semibold ${
+                                    tx.amount < 0
+                                        ? "text-red-600"
+                                        : "text-green-600"
+                                    }`}
+                                >
+                                    {tx.amount < 0 ? `- ` : `+ `}<FormattedAmount value={Math.abs(tx.amount)} />
+                                </td>
+                                <td
+                                    className={`p-3 border-b text-gray-600 ${isClickableShop ? 'cursor-pointer hover:text-indigo-600 hover:font-semibold' : ''}`}
+                                    onClick={() => isClickableShop && handleShopClick(tx.shop, tx.date)}
+                                >
+                                    {tx.shop}
+                                </td>
+                                </tr>
+                            )
+                        })
                         )}
                       </tbody>
                     </table>
@@ -2165,6 +2223,66 @@ export default function App() {
                   </motion.div>
                 )}
               </AnimatePresence>
+              <AnimatePresence>
+                {billDetails.isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
+                        onClick={() => setBillDetails({ isOpen: false, data: null, loading: false })}
+                    >
+                    <motion.div
+                        initial={{ y: 50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 50, opacity: 0 }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border-t-4 border-indigo-500"
+                    >
+                        {billDetails.loading ? (
+                            <div className="flex justify-center items-center h-48">
+                                <Loader className="w-12 h-12 text-indigo-600 animate-spin" />
+                            </div>
+                        ) : billDetails.data && (
+                            <div className="space-y-4">
+                                <div className="text-center">
+                                    <h2 className="text-2xl font-bold text-indigo-800">{billDetails.data.shop}</h2>
+                                </div>
+                                <div className="flex justify-between items-center text-gray-600 bg-gray-50 p-3 rounded-lg">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar size={20}/>
+                                    <span>{billDetails.data.date}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                     <Wallet size={20}/>
+                                     <span className="font-bold text-indigo-600"><FormattedAmount value={billDetails.data.totalAmount} /></span>
+                                  </div>
+                                </div>
+                                
+                                <div className="border-t pt-4">
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2"><User size={20} /> قام بالدفع:</h3>
+                                    <p className="bg-green-100 text-green-800 font-bold px-4 py-2 rounded-lg">{billDetails.data.payer}</p>
+                                </div>
+                                
+                                <div className="border-t pt-4">
+                                    <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2"><Users size={20} />المشاركون في الفاتورة:</h3>
+                                    <ul className="space-y-2">
+                                        {billDetails.data.participants.map(p => (
+                                            <li key={p.name} className="flex justify-between items-center bg-red-50 p-2 rounded-lg">
+                                                <span className="text-red-800">{p.name}</span>
+                                                <span className="font-semibold text-red-600">
+                                                    <FormattedAmount value={p.amount} />
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        )}
+                    </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             </motion.div>
           ) : view === "purchases" ? (
             <PurchasesPage key="purchases" onBack={() => setView("main")} />

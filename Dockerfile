@@ -1,30 +1,31 @@
-# Stage 1: build frontend
+# Stage 1: Build Frontend
 FROM node:18 AS builder
-WORKDIR /app/frontend
+WORKDIR /app
 
-# Copy only package.json to ensure a fresh install
-COPY frontend/package.json ./
-
-# Install dependencies. This will create a fresh package-lock.json inside the container.
+# Copy ONLY package files first to leverage Docker cache
+COPY frontend/package.json frontend/package-lock.json* ./
+# Install dependencies in a clean environment
 RUN npm install
 
-# Copy the rest of the frontend source code
+# Copy the rest of the source code. .dockerignore will prevent local node_modules from being copied.
 COPY frontend/ ./
-RUN chmod +x node_modules/.bin/vite
+
+# Run the build command
 RUN npm run build
 
-# Stage 2: build backend container
+# Stage 2: Final Backend Image
 FROM node:18
 WORKDIR /app
-# Copy backend package files
-COPY backend/package.json backend/package-lock.json* ./
-# Install backend dependencies
-RUN npm install
 
-# Copy backend source code
+# Copy backend package files and install dependencies
+COPY backend/package.json backend/package-lock.json* ./
+RUN npm install
+# Copy backend source code after installing dependencies
 COPY backend/ ./
-# Copy built frontend from the builder stage
-COPY --from=builder /app/frontend/dist ./frontend/dist
+
+# Copy the built frontend from the builder stage
+# The build output is at /app/dist in the builder stage
+COPY --from=builder /app/dist ./frontend/dist
 
 EXPOSE 3000
 CMD ["node", "index.js"]

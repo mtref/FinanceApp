@@ -238,6 +238,49 @@ app.delete("/api/participants/:id", async (req, res) => {
   );
 });
 
+// ===== START: Bill Details Route =====
+app.get("/api/bill-details", (req, res) => {
+  const { shop, date } = req.query;
+  if (!shop || !date) {
+    return res.status(400).json({ error: "Shop and date are required" });
+  }
+
+  const query = `
+    SELECT t.amount, p.name
+    FROM transactions t
+    JOIN participants p ON p.id = t.participant_id
+    WHERE t.shop = ? AND t.date = ? AND p.deleted = 0
+  `;
+
+  db.all(query, [shop, date], (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Bill not found" });
+    }
+
+    const payer = rows.find(r => r.amount > 0);
+    const participants = rows
+      .filter(r => r.amount < 0)
+      .map(p => ({ name: p.name, amount: Math.abs(p.amount) }));
+    
+    const totalAmount = payer ? payer.amount : participants.reduce((sum, p) => sum + p.amount, 0);
+
+    const billDetails = {
+      shop,
+      date,
+      totalAmount,
+      payer: payer ? payer.name : "Unknown",
+      participants
+    };
+
+    res.json(billDetails);
+  });
+});
+// ===== END: Bill Details Route =====
+
 // ===== START: Dashboard API Routes =====
 app.get("/api/dashboard/payer-summary", (req, res) => {
   const query = `
