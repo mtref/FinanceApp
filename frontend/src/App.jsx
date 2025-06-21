@@ -78,6 +78,7 @@ const PurchasesPage = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [totalCash, setTotalCash] = useState(0);
   const [names, setNames] = useState([]);
+  const [namesWithStatus, setNamesWithStatus] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [modal, setModal] = useState(null);
   const [newName, setNewName] = useState("");
@@ -108,15 +109,18 @@ const PurchasesPage = ({ onBack }) => {
 
   const fetchData = async () => {
     try {
-      const [namesRes, transactionsRes] = await Promise.all([
+      const [namesRes, transactionsRes, namesStatusRes] = await Promise.all([
         fetch("/api/purchases/names"),
         fetch("/api/purchases/transactions"),
+        fetch("/api/purchases/names-status"),
       ]);
       const namesData = await namesRes.json();
       const transactionsData = await transactionsRes.json();
+      const namesStatusData = await namesStatusRes.json();
       setNames(namesData);
       setTransactions(transactionsData.transactions);
       setTotalCash(transactionsData.totalCash);
+      setNamesWithStatus(namesStatusData);
     } catch (error) {
       console.error("Error fetching purchases data:", error);
       toast.error("Failed to load purchases data.");
@@ -407,6 +411,25 @@ const PurchasesPage = ({ onBack }) => {
           تسجيل المشتريات
         </button>
       </div>
+
+       <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">
+            حالة الاشتراكات (آخر 30 يوم)
+        </h2>
+        <div className="flex flex-wrap justify-center gap-3">
+            {namesWithStatus.map(person => (
+            <div 
+                key={person.id}
+                className={`px-4 py-2 rounded-full text-white font-semibold text-sm shadow-md transition-colors ${
+                person.hasSufficientCredit ? 'bg-green-500' : 'bg-red-500'
+                }`}
+            >
+                {person.name}
+            </div>
+            ))}
+        </div>
+        </div>
+
       <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
           <h2 className="text-2xl font-bold text-gray-800">
@@ -1076,7 +1099,7 @@ const DashboardPage = ({ onBack }) => {
   const [timeData, setTimeData] = useState([]);
   const [shopData, setShopData] = useState([]);
   const [balanceData, setBalanceData] = useState([]);
-  const [avgSpendingData, setAvgSpendingData] = useState([]);
+  const [participantSpendingData, setParticipantSpendingData] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -1086,7 +1109,7 @@ const DashboardPage = ({ onBack }) => {
           fetch("/api/dashboard/spending-over-time"),
           fetch("/api/dashboard/spending-by-shop"),
           fetch("/api/dashboard/balance-distribution"),
-          fetch("/api/dashboard/average-spending"),
+          fetch("/api/dashboard/participant-spending"),
         ]);
         const payerJson = await payerRes.json();
         const timeJson = await timeRes.json();
@@ -1098,7 +1121,7 @@ const DashboardPage = ({ onBack }) => {
         setTimeData(timeJson);
         setShopData(shopJson);
         setBalanceData(balanceJson);
-        setAvgSpendingData(avgSpendingJson);
+        setParticipantSpendingData(avgSpendingJson);
 
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -1224,16 +1247,16 @@ const DashboardPage = ({ onBack }) => {
           {/* Average Spending Bar Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-lg">
             <h2 className="text-xl font-bold text-gray-700 mb-4">
-              متوسط قيمة الفاتورة لكل مشارك
+            إجمالي مساهمات المشاركين في الفواتير
             </h2>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={avgSpendingData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+              <BarChart data={participantSpendingData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis tickMargin={10} />
                 <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
                 <Legend />
-                <Bar dataKey="avg_spent" name="متوسط الصرف" fill="#ffc658" />
+                <Bar dataKey="total_spent_in_bills" name="إجمالي المساهمة" fill="#ffc658" />
               </BarChart>
             </ResponsiveContainer>
           </div>
