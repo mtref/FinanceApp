@@ -377,7 +377,7 @@ const PurchasesPage = ({ onBack }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-lg text-center border-t-4 border-purple-500 col-span-1 md:col-span-3">
           <h2 className="text-lg font-bold text-gray-700 mb-2">
-            إجمالي النقد المتوفر
+            إجمالي المبلغ المتوفر
           </h2>
           <p
             className={`font-bold ${
@@ -414,7 +414,7 @@ const PurchasesPage = ({ onBack }) => {
 
        <div className="bg-white rounded-2xl shadow-lg p-6">
         <h2 className="text-xl font-bold text-gray-800 mb-4">
-            حالة الاشتراكات (آخر 30 يوم)
+            حالة الدفع (الأحمر لم يدفع آخر شهر)
         </h2>
         <div className="flex flex-wrap justify-center gap-3">
             {namesWithStatus.map(person => (
@@ -433,7 +433,7 @@ const PurchasesPage = ({ onBack }) => {
       <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
         <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
           <h2 className="text-2xl font-bold text-gray-800">
-            سجل الحركات المالية
+            سجل التحركات المالية
           </h2>
           <div className="flex items-center gap-2 flex-wrap">
             <button
@@ -1169,7 +1169,7 @@ const DashboardPage = ({ onBack }) => {
         {/* Payer Contributions Chart */}
         <div className="bg-white p-6 rounded-2xl shadow-lg">
           <h2 className="text-xl font-bold text-gray-700 mb-4">
-            إجمالي المدفوعات لكل مشارك
+            الدفيعين الفخمين
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={payerData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
@@ -1189,7 +1189,7 @@ const DashboardPage = ({ onBack }) => {
         {/* Spending by Shop Chart */}
         <div className="bg-white p-6 rounded-2xl shadow-lg">
           <h2 className="text-xl font-bold text-gray-700 mb-4">
-            المصروفات حسب المتجر
+            إجمالي المبلغ بحسب المقهى
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -1247,7 +1247,7 @@ const DashboardPage = ({ onBack }) => {
           {/* Average Spending Bar Chart */}
           <div className="bg-white p-6 rounded-2xl shadow-lg">
             <h2 className="text-xl font-bold text-gray-700 mb-4">
-            إجمالي مساهمات المشاركين في الفواتير
+            الأكيله
             </h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={participantSpendingData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
@@ -1256,7 +1256,7 @@ const DashboardPage = ({ onBack }) => {
                 <YAxis tickMargin={10} />
                 <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
                 <Legend />
-                <Bar dataKey="total_spent_in_bills" name="إجمالي المساهمة" fill="#ffc658" />
+                <Bar dataKey="total_spent_in_bills" name="إجمالي المدفوع" fill="#ffc658" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1264,7 +1264,7 @@ const DashboardPage = ({ onBack }) => {
 
       {/* Spending Over Time Chart */}
       <div className="bg-white p-6 rounded-2xl shadow-lg">
-        <h2 className="text-xl font-bold text-gray-700 mb-4">المصروفات عبر الزمن</h2>
+        <h2 className="text-xl font-bold text-gray-700 mb-4">تاريخ مبالغ الفواتير</h2>
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={timeData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -1275,7 +1275,7 @@ const DashboardPage = ({ onBack }) => {
             <Line
               type="monotone"
               dataKey="total_spent"
-              name="إجمالي المصروفات"
+              name="مبلغ الفاتورة"
               stroke="#8884d8"
               strokeWidth={2}
               activeDot={{ r: 8 }}
