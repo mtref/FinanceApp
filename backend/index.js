@@ -26,8 +26,9 @@ const db = new sqlite3.Database(dbFile, (err) => {
   }
 });
 
-// Create tables if they don't exist
+// --- Schema Migration & Table Creation ---
 db.serialize(() => {
+  // Create tables if they don't exist
   db.run(`
         CREATE TABLE IF NOT EXISTS participants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,6 +45,25 @@ db.serialize(() => {
             amount REAL,
             shop TEXT
         )`);
+
+  // Add 'items' column to 'transactions' if it doesn't exist (MIGRATION)
+  db.all("PRAGMA table_info(transactions)", (err, columns) => {
+    if (err) {
+      console.error("Error getting table info for transactions:", err.message);
+      return;
+    }
+    const hasItemsColumn = columns.some((col) => col.name === "items");
+    if (!hasItemsColumn) {
+      db.run("ALTER TABLE transactions ADD COLUMN items TEXT", (alterErr) => {
+        if (alterErr) {
+          console.error("Error altering transactions table:", alterErr.message);
+        } else {
+          console.log("✅ 'items' column added to 'transactions' table.");
+        }
+      });
+    }
+  });
+
   db.run(`
         CREATE TABLE IF NOT EXISTS purchases_names (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,10 +128,12 @@ app.post("/api/participants", (req, res) => {
 
 app.post("/api/participants/:id/credit", (req, res) => {
   const id = Number(req.params.id);
-  const { amount, date } = req.body;
+  const { amount, date, items } = req.body; // `items` can be passed now
   if (isNaN(amount) || !date) {
     return res.status(400).json({ error: "Invalid amount" });
   }
+  const itemsJson = JSON.stringify(items || null);
+
   db.serialize(() => {
     db.run(
       `UPDATE participants SET balance = balance + ? WHERE id = ?`,
@@ -121,8 +143,8 @@ app.post("/api/participants/:id/credit", (req, res) => {
         if (this.changes === 0)
           return res.status(404).json({ error: "Participant not found" });
         db.run(
-          `INSERT INTO transactions (participant_id, date, amount, shop) VALUES (?, ?, ?, ?)`,
-          [id, date, amount, req.body.shop || "إيداع في الحساب"],
+          `INSERT INTO transactions (participant_id, date, amount, shop, items) VALUES (?, ?, ?, ?, ?)`,
+          [id, date, amount, req.body.shop || "إيداع في الحساب", itemsJson],
           (err2) => {
             if (err2) console.warn("Transaction log failed", err2);
             db.get(
@@ -155,8 +177,8 @@ app.post("/api/participants/:id/debit", (req, res) => {
         if (this.changes === 0)
           return res.status(404).json({ error: "Participant not found" });
         db.run(
-          `INSERT INTO transactions (participant_id, date, amount, shop) VALUES (?, ?, ?, ?)`,
-          [id, date, -Math.abs(amount), "خصم نقدي من الحساب"],
+          `INSERT INTO transactions (participant_id, date, amount, shop, items) VALUES (?, ?, ?, ?, ?)`,
+          [id, date, -Math.abs(amount), "خصم نقدي من الحساب", null],
           (err2) => {
             if (err2) console.warn("Transaction log failed", err2);
             db.get(
@@ -201,18 +223,24 @@ app.get("/api/bill-details", (req, res) => {
   const { shop, date } = req.query;
   if (!shop || !date)
     return res.status(400).json({ error: "Shop and date are required" });
-  const query = `SELECT t.amount, p.name FROM transactions t JOIN participants p ON p.id = t.participant_id WHERE t.shop = ? AND t.date = ? AND p.deleted = 0`;
+  const query = `SELECT t.amount, p.name, t.items FROM transactions t JOIN participants p ON p.id = t.participant_id WHERE t.shop = ? AND t.date = ? AND p.deleted = 0`;
   db.all(query, [shop, date], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
     if (rows.length === 0)
       return res.status(404).json({ error: "Bill not found" });
+
     const payer = rows.find((r) => r.amount > 0);
     const participants = rows
       .filter((r) => r.amount < 0)
-      .map((p) => ({ name: p.name, amount: Math.abs(p.amount) }));
+      .map((p) => ({
+        name: p.name,
+        amount: Math.abs(p.amount),
+        items: p.items ? JSON.parse(p.items) : [],
+      }));
     const totalAmount = payer
       ? payer.amount
       : participants.reduce((sum, p) => sum + p.amount, 0);
+
     res.json({
       shop,
       date,
