@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        VITE_TABLES_APP_URL: "http://localhost:3001" # Or your deployment IP/domain:port
+        VITE_TABLES_APP_URL: "http://localhost:3001"
     ports:
       - "3000:3000"
     volumes:
