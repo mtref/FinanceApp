@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import { Loader, ShoppingCart, Coffee, BarChart3, Table } from "lucide-react";
@@ -7,9 +7,10 @@ import ParticipantCard from "../components/main/ParticipantCard.jsx";
 import TransactionsLog from "../components/main/TransactionsLog.jsx";
 import MainPageModals from "../components/main/MainPageModals.jsx";
 import FormattedAmount from "../components/FormattedAmount.jsx";
+import BalanceWarning from "../components/BalanceWarning.jsx";
 import { toYYYYMMDD } from "../utils/dateUtils.js";
 
-const MainPage = ({ setView }) => {
+const MainPage = ({ setView, currentUser }) => {
   // Core Data State
   const [participants, setParticipants] = useState([]);
   const [allTx, setAllTx] = useState([]);
@@ -406,6 +407,11 @@ const MainPage = ({ setView }) => {
     0
   );
 
+  const currentUserData = useMemo(
+    () => participants.find((p) => p.name === currentUser),
+    [participants, currentUser]
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -422,6 +428,9 @@ const MainPage = ({ setView }) => {
       exit={{ opacity: 0 }}
     >
       <div className="max-w-5xl mx-auto space-y-6">
+        {currentUserData && currentUserData.balance < 0 && (
+          <BalanceWarning userName={currentUser} />
+        )}
         <h1 className="text-4xl font-extrabold text-center text-indigo-700 mb-10">
           إدارة العزبة
         </h1>
