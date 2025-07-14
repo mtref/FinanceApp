@@ -1,10 +1,12 @@
 services:
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_TABLES_APP_URL: "http://localhost:3001" # Or your deployment IP/domain:port
     ports:
       - "3000:3000"
     volumes:
-      - data:/app/data   # Ensures DB folder persists
-
+      - data:/app/data
 volumes:
   data:

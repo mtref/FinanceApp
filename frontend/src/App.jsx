@@ -16,10 +16,65 @@ import {
   Save,
   X,
   Percent,
+  BarChart3,
+  FileDown,
+  User,
+  Calendar,
+  Wallet,
+  Users,
+  Table,
+  Plus,
+  Minus, // Ensure this icon is imported if used
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import * as XLSX from "xlsx";
+
+// Helper function to format dates correctly, avoiding timezone issues.
+const toYYYYMMDD = (dateStr) => {
+  if (!dateStr) return null;
+  const date = new Date(dateStr);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Component to format numbers with different styles for integer and decimal parts.
+const FormattedAmount = ({
+  value,
+  mainSize = "text-lg",
+  decimalSize = "text-base",
+}) => {
+  const num = Number(value) || 0;
+  const isNegative = num < 0;
+  const absValue = Math.abs(num);
+
+  const [integerPart, decimalPart] = absValue.toFixed(3).split(".");
+
+  return (
+    <span className="inline-flex items-baseline leading-none" dir="ltr">
+      {isNegative && <span className={mainSize}>-</span>}
+      <span className={mainSize}>{integerPart}</span>
+      <span className={`${decimalSize} opacity-70`}>.{decimalPart}</span>
+    </span>
+  );
+};
 
 // ===================================================================================
 // PURCHASES PAGE COMPONENT
@@ -28,16 +83,22 @@ const PurchasesPage = ({ onBack }) => {
   const [loading, setLoading] = useState(true);
   const [totalCash, setTotalCash] = useState(0);
   const [names, setNames] = useState([]);
+  const [namesWithStatus, setNamesWithStatus] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [modal, setModal] = useState(null);
   const [newName, setNewName] = useState("");
   const [formDate, setFormDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [formAmount, setFormAmount] = useState("");
   const [formNameId, setFormNameId] = useState("");
   const [formDetails, setFormDetails] = useState("");
+
+  // State for pagination and filtering
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [filterType, setFilterType] = useState("all"); // 'all', 'purchase', 'credit'
 
   const addNameInputRef = useRef(null);
   const transactionAmountInputRef = useRef(null);
@@ -53,15 +114,18 @@ const PurchasesPage = ({ onBack }) => {
 
   const fetchData = async () => {
     try {
-      const [namesRes, transactionsRes] = await Promise.all([
+      const [namesRes, transactionsRes, namesStatusRes] = await Promise.all([
         fetch("/api/purchases/names"),
         fetch("/api/purchases/transactions"),
+        fetch("/api/purchases/names-status"),
       ]);
       const namesData = await namesRes.json();
       const transactionsData = await transactionsRes.json();
+      const namesStatusData = await namesStatusRes.json();
       setNames(namesData);
       setTransactions(transactionsData.transactions);
       setTotalCash(transactionsData.totalCash);
+      setNamesWithStatus(namesStatusData);
     } catch (error) {
       console.error("Error fetching purchases data:", error);
       toast.error("Failed to load purchases data.");
@@ -73,11 +137,43 @@ const PurchasesPage = ({ onBack }) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Filter and pagination calculations
+  const filteredTransactions = useMemo(() => {
+    if (filterType === "all") {
+      return transactions;
+    }
+    return transactions.filter((tx) => tx.type === filterType);
+  }, [transactions, filterType]);
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage) || 1;
+  const pagedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handleFilterChange = (type) => {
+    setFilterType(type);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
+  const handleExport = () => {
+    const dataToExport = filteredTransactions.map(({ id, ...rest }) => ({
+      ...rest,
+      type: rest.type === "credit" ? "إيداع" : "شراء",
+      amount: rest.type === "credit" ? rest.amount : -rest.amount,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Purchases");
+    XLSX.writeFile(workbook, "purchases_transactions.xlsx");
+  };
+
   const resetForm = () => {
     setNewName("");
     setFormDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
+      startDate: new Date(),
+      endDate: new Date(),
     });
     setFormAmount("");
     setFormNameId("");
@@ -107,7 +203,7 @@ const PurchasesPage = ({ onBack }) => {
     if (!formAmount || parseFloat(formAmount) <= 0)
       return toast.error("الرجاء ادخال المبلغ.");
     const payload = {
-      date: new Date(formDate.startDate).toISOString().split("T")[0],
+      date: toYYYYMMDD(formDate.startDate),
       amount: parseFloat(formAmount),
       type: type,
       name_id: formNameId || null,
@@ -286,14 +382,18 @@ const PurchasesPage = ({ onBack }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white p-6 rounded-xl shadow-lg text-center border-t-4 border-purple-500 col-span-1 md:col-span-3">
           <h2 className="text-lg font-bold text-gray-700 mb-2">
-            إجمالي النقد المتوفر
+            إجمالي المبلغ المتوفر
           </h2>
           <p
-            className={`text-3xl font-bold ${
+            className={`font-bold ${
               totalCash >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
-            {(totalCash || 0).toFixed(3)}
+            <FormattedAmount
+              value={totalCash}
+              mainSize="text-3xl"
+              decimalSize="text-2xl"
+            />
           </p>
         </div>
       </div>
@@ -320,10 +420,82 @@ const PurchasesPage = ({ onBack }) => {
           تسجيل المشتريات
         </button>
       </div>
-      <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">
-          سجل الحركات المالية
+
+      <div className="bg-white rounded-2xl shadow-lg p-6">
+        <h2 className="text-xl font-bold text-gray-800 mb-4">
+          حالة الدفع (الأحمر لم يدفع آخر شهر)
         </h2>
+        <div className="flex flex-wrap justify-center gap-3">
+          {namesWithStatus.map((person) => (
+            <div
+              key={person.id}
+              className={`px-4 py-2 rounded-full text-white font-semibold text-sm shadow-md transition-colors ${
+                person.hasSufficientCredit ? "bg-green-500" : "bg-red-500"
+              }`}
+            >
+              {person.name}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-lg p-6 mt-6">
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+          <h2 className="text-2xl font-bold text-gray-800">
+            سجل التحركات المالية
+          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => handleFilterChange("all")}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                filterType === "all"
+                  ? "bg-purple-600 text-white shadow"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              الكل
+            </button>
+            <button
+              onClick={() => handleFilterChange("purchase")}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                filterType === "purchase"
+                  ? "bg-red-600 text-white shadow"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              شراء فقط
+            </button>
+            <button
+              onClick={() => handleFilterChange("credit")}
+              className={`px-3 py-1 rounded-md text-sm transition-colors ${
+                filterType === "credit"
+                  ? "bg-green-600 text-white shadow"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              إيداع فقط
+            </button>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => {
+                setItemsPerPage(Number(e.target.value));
+                setCurrentPage(1); // Reset to first page when items per page changes
+              }}
+              className="px-3 py-2 rounded-lg border bg-white focus:ring-2 focus:ring-purple-300"
+            >
+              <option value={10}>10 لكل صفحة</option>
+              <option value={20}>20 لكل صفحة</option>
+              <option value={50}>50 لكل صفحة</option>
+            </select>
+            <button
+              onClick={handleExport}
+              className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 shadow flex items-center gap-2"
+            >
+              <FileDown size={18} />
+              تصدير
+            </button>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right border-collapse">
             <thead className="bg-purple-100 text-purple-800 font-bold uppercase">
@@ -336,14 +508,14 @@ const PurchasesPage = ({ onBack }) => {
               </tr>
             </thead>
             <tbody>
-              {transactions.length === 0 ? (
+              {pagedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="text-center py-10 text-gray-500">
-                    لا توجد حركات مسجلة.
+                    لا توجد حركات مسجلة تطابق الفلتر.
                   </td>
                 </tr>
               ) : (
-                transactions.map((tx) => (
+                pagedTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-purple-50 border-b">
                     <td className="p-3">{tx.date}</td>
                     <td className="p-3 font-semibold">
@@ -358,8 +530,12 @@ const PurchasesPage = ({ onBack }) => {
                         tx.type === "credit" ? "text-green-600" : "text-red-600"
                       }`}
                     >
-                      {tx.type === "credit" ? "+" : "-"}
-                      {(tx.amount || 0).toFixed(3)}
+                      {tx.type === "credit" ? "+" : "-"}{" "}
+                      <FormattedAmount
+                        value={tx.amount}
+                        mainSize="text-base"
+                        decimalSize="text-sm"
+                      />
                     </td>
                     <td className="p-3 text-gray-700">{tx.name || "---"}</td>
                     <td className="p-3 text-gray-600">{tx.details || "---"}</td>
@@ -369,6 +545,31 @@ const PurchasesPage = ({ onBack }) => {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center gap-3 mt-6 pt-4 border-t">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-purple-500 hover:text-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={18} />
+              <span>السابق</span>
+            </button>
+            <span className="text-gray-700 font-medium">
+              صفحة {currentPage} من {totalPages}
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+              }
+              disabled={currentPage === totalPages}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-purple-500 hover:text-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            >
+              <span>التالي</span>
+              <ChevronLeft size={18} />
+            </button>
+          </div>
+        )}
       </div>
       <AnimatePresence>
         {modal && (
@@ -406,10 +607,19 @@ const MenusPage = ({ onBack }) => {
   const [modal, setModal] = useState(null);
   const [newShopName, setNewShopName] = useState("");
   const [newItemName, setNewItemName] = useState("");
+  // FIX: Corrected state variable declaration to use setNewItemPrice correctly
   const [newItemPrice, setNewItemPrice] = useState("");
   const [editingItemId, setEditingItemId] = useState(null);
   const [editingItemName, setEditingItemName] = useState("");
+  // FIX: Corrected state variable declaration to use setEditingItemPrice correctly
   const [editingItemPrice, setEditingItemPrice] = useState("");
+  // New state for confirmation modal
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
 
   const addShopInputRef = useRef(null);
   const addItemNameInputRef = useRef(null);
@@ -539,34 +749,45 @@ const MenusPage = ({ onBack }) => {
     }
   };
 
-  const handleDeleteItem = async (itemId) => {
-    if (window.confirm("هل أنت متأكد من رغبتك بحذف الصنف؟")) {
-      try {
-        await fetch(`/api/menus/items/${itemId}`, { method: "DELETE" });
-        toast.success("تم حذف الصنف بنجاح");
-        handleSelectShop(selectedShop);
-      } catch (error) {
-        toast.error("فشل في حذف الصنف");
-      }
-    }
+  const handleDeleteItem = (itemId) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "تأكيد الحذف",
+      message: "هل أنت متأكد من رغبتك بحذف هذا الصنف؟",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/menus/items/${itemId}`, { method: "DELETE" });
+          toast.success("تم حذف الصنف بنجاح");
+          handleSelectShop(selectedShop); // Refreshes the list
+        } catch (error) {
+          toast.error("فشل في حذف الصنف");
+        } finally {
+          setConfirmModal({ isOpen: false }); // Close modal
+        }
+      },
+    });
   };
 
-  const handleDeleteShop = async (shop) => {
-    if (
-      window.confirm(
-        `هل أنت متأكد من رغبتك بحذف مقهى "${shop.name}" مع جميع الأصناف بداخله؟ لا يمكن التراجع لاحقاً`
-      )
-    ) {
-      try {
-        await fetch(`/api/menus/shops/${shop.id}`, { method: "DELETE" });
-        toast.success(`مقهى "${shop.name}" تم حذفه بنجاح.`);
-        fetchShops();
-        setView("list");
-        setSelectedShop(null);
-      } catch (error) {
-        toast.error("فشل في حذف المقهى.");
-      }
-    }
+  const handleDeleteShop = (shop) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `حذف مقهى "${shop.name}"`,
+      message:
+        "هل أنت متأكد من رغبتك بحذف المقهى مع جميع الأصناف بداخله؟ لا يمكن التراجع لاحقاً",
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/menus/shops/${shop.id}`, { method: "DELETE" });
+          toast.success(`مقهى "${shop.name}" تم حذفه بنجاح.`);
+          fetchShops();
+          setView("list");
+          setSelectedShop(null);
+        } catch (error) {
+          toast.error("فشل في حذف المقهى.");
+        } finally {
+          setConfirmModal({ isOpen: false });
+        }
+      },
+    });
   };
 
   const renderModals = () => {
@@ -787,7 +1008,11 @@ const MenusPage = ({ onBack }) => {
                           {item.item_name}
                         </span>
                         <span className="font-bold text-teal-600 bg-teal-100 px-3 py-1 rounded-full">
-                          {(item.price || 0).toFixed(3)}
+                          <FormattedAmount
+                            value={item.price}
+                            mainSize="text-base"
+                            decimalSize="text-sm"
+                          />
                         </span>
                         <button
                           onClick={() => startEditing(item)}
@@ -835,6 +1060,269 @@ const MenusPage = ({ onBack }) => {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4"
+            onClick={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 50, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl p-6 w-96 max-w-full shadow-2xl border-t-4 border-red-500"
+            >
+              <h2 className="text-xl font-bold text-red-600 mb-4 border-b pb-2">
+                {confirmModal.title}
+              </h2>
+              <p className="text-gray-700 mb-6">{confirmModal.message}</p>
+              <div className="flex justify-end gap-2">
+                <button
+                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
+                  onClick={() =>
+                    setConfirmModal({ ...confirmModal, isOpen: false })
+                  }
+                >
+                  إلغاء
+                </button>
+                <button
+                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+                  onClick={() => {
+                    if (confirmModal.onConfirm) {
+                      confirmModal.onConfirm();
+                    }
+                  }}
+                >
+                  تأكيد الحذف
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+// ===================================================================================
+// DASHBOARD PAGE COMPONENT
+// ===================================================================================
+const DashboardPage = ({ onBack }) => {
+  const [loading, setLoading] = useState(true);
+  const [payerData, setPayerData] = useState([]);
+  const [timeData, setTimeData] = useState([]);
+  const [shopData, setShopData] = useState([]);
+  const [balanceData, setBalanceData] = useState([]);
+  const [participantSpendingData, setParticipantSpendingData] = useState([]);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [payerRes, timeRes, shopRes, balanceRes, avgSpendingRes] =
+          await Promise.all([
+            fetch("/api/dashboard/payer-summary"),
+            fetch("/api/dashboard/spending-over-time"),
+            fetch("/api/dashboard/spending-by-shop"),
+            fetch("/api/dashboard/balance-distribution"),
+            fetch("/api/dashboard/participant-spending"),
+          ]);
+        const payerJson = await payerRes.json();
+        const timeJson = await timeRes.json();
+        const shopJson = await shopRes.json();
+        const balanceJson = await balanceRes.json();
+        const avgSpendingJson = await avgSpendingRes.json();
+
+        setPayerData(payerJson);
+        setTimeData(timeJson);
+        setShopData(shopJson);
+        setBalanceData(balanceJson);
+        setParticipantSpendingData(avgSpendingJson);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        toast.error("Failed to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+  const PIE_COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"];
+  const BALANCE_PIE_COLORS = {
+    "مدين (عليه دين)": "#FF8042",
+    "دائن (له رصيد)": "#00C49F",
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader className="w-16 h-16 text-indigo-600 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="max-w-7xl mx-auto space-y-8"
+    >
+      <div className="flex justify-between items-center">
+        <h1 className="text-4xl font-extrabold text-gray-800 flex items-center gap-3">
+          <BarChart3 size={40} />
+          لوحة المعلومات
+        </h1>
+        <button
+          onClick={onBack}
+          className="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 shadow"
+        >
+          العودة للرئيسية
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Payer Contributions Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+          <h2 className="text-xl font-bold text-gray-700 mb-4">
+            الدفيعين الفخمين
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={payerData}
+              margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis tickMargin={10} />
+              <Tooltip
+                formatter={(value) => `${value.toFixed(3)}`}
+                cursor={{ fill: "rgba(238, 242, 255, 0.6)" }}
+              />
+              <Legend />
+              <Bar dataKey="total_paid" name="المبلغ المدفوع" fill="#4f46e5" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Spending by Shop Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+          <h2 className="text-xl font-bold text-gray-700 mb-4">
+            إجمالي المبلغ بحسب المقهى
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={shopData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={false}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="total_spent"
+                nameKey="shop"
+              >
+                {shopData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={PIE_COLORS[index % PIE_COLORS.length]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Balance Distribution Pie Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+          <h2 className="text-xl font-bold text-gray-700 mb-4">
+            توزيع أرصدة المشاركين
+          </h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={balanceData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={false}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="count"
+                nameKey="status"
+              >
+                {balanceData.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={BALANCE_PIE_COLORS[entry.status]}
+                  />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value, name) => [`${value} مشارك`, name]} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Average Spending Bar Chart */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg">
+          <h2 className="text-xl font-bold text-gray-700 mb-4">الأكيله</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={participantSpendingData}
+              margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis tickMargin={10} />
+              <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
+              <Legend />
+              <Bar
+                dataKey="total_spent_in_bills"
+                name="إجمالي المدفوع"
+                fill="#ffc658"
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Spending Over Time Chart */}
+      <div className="bg-white p-6 rounded-2xl shadow-lg">
+        <h2 className="text-xl font-bold text-gray-700 mb-4">
+          تاريخ مبالغ الفواتير
+        </h2>
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart
+            data={timeData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis tickMargin={10} />
+            <Tooltip formatter={(value) => `${value.toFixed(3)}`} />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="total_spent"
+              name="مبلغ الفاتورة"
+              stroke="#8884d8"
+              strokeWidth={2}
+              activeDot={{ r: 8 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </motion.div>
   );
 };
@@ -849,8 +1337,8 @@ export default function App() {
   const [adding, setAdding] = useState(false);
   const [splitBill, setSplitBill] = useState(false);
   const [billDate, setBillDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [shopName, setShopName] = useState("");
   const [payerId, setPayerId] = useState("");
@@ -859,14 +1347,14 @@ export default function App() {
   const [creditId, setCreditId] = useState(null);
   const [creditAmount, setCreditAmount] = useState("");
   const [creditDate, setCreditDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [debitId, setDebitId] = useState(null);
   const [debitAmount, setDebitAmount] = useState("");
   const [debitDate, setDebitDate] = useState({
-    startDate: new Date().toISOString(),
-    endDate: new Date().toISOString(),
+    startDate: new Date(),
+    endDate: new Date(),
   });
   const [allTx, setAllTx] = useState([]);
   const [deleteId, setDeleteId] = useState(null);
@@ -880,10 +1368,26 @@ export default function App() {
     endDate: null,
   });
   const [loading, setLoading] = useState(true);
+  const [billDetails, setBillDetails] = useState({
+    isOpen: false,
+    loading: false,
+    data: null,
+  });
 
   // New state for tax feature
   const [showTaxInput, setShowTaxInput] = useState(false);
   const [taxRate, setTaxRate] = useState("");
+  const [taxApplied, setTaxApplied] = useState(false); // Prevents editing cart after tax
+
+  // START: New state for the requested feature
+  const [allShops, setAllShops] = useState([]);
+  const [selectedShopId, setSelectedShopId] = useState("");
+  const [selectedShopMenu, setSelectedShopMenu] = useState([]);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingParticipant, setEditingParticipant] = useState(null);
+  const [participantOrder, setParticipantOrder] = useState([]);
+  const [isMenuLoading, setIsMenuLoading] = useState(false); // Local loading for menu
+  // END: New state for the requested feature
 
   // Refs for auto-focus on main page modals
   const addParticipantInputRef = useRef(null);
@@ -911,8 +1415,11 @@ export default function App() {
     const res = await fetch("/api/participants");
     const data = await res.json();
     setParticipants(data.filter((p) => !p.deleted));
+    // FIX: Update contributions structure to include items array
     setContributions(
-      data.filter((p) => !p.deleted).map((p) => ({ id: p.id, amount: "" }))
+      data
+        .filter((p) => !p.deleted)
+        .map((p) => ({ id: p.id, amount: "", items: [] }))
     );
   };
   const loadAllTx = async () => {
@@ -935,6 +1442,121 @@ export default function App() {
     }
   }, [view]);
 
+  // START: Functions for the new feature
+  const openSplitBillModal = async () => {
+    try {
+      const res = await fetch("/api/menus/shops");
+      if (!res.ok) throw new Error("فشل في تحميل قائمة المقاهي");
+      const data = await res.json();
+      setAllShops(data);
+    } catch (error) {
+      toast.error(error.message);
+      setAllShops([]); // Ensure it's an array
+    }
+    setSplitBill(true);
+  };
+
+  const handleShopSelectionChange = async (shopId) => {
+    setSelectedShopId(shopId);
+    // FIX: Reset contributions with items array when shop changes
+    setContributions(
+      participants.map((p) => ({ id: p.id, amount: "", items: [] }))
+    );
+    setBillAmount("");
+    setTaxApplied(false); // Reset tax when shop changes
+    if (!shopId) {
+      setSelectedShopMenu([]);
+      setShopName("");
+      return;
+    }
+    try {
+      // FIX: Use local loading state instead of global one
+      setIsMenuLoading(true);
+      const res = await fetch(`/api/menus/shops/${shopId}`);
+      if (!res.ok) throw new Error("فشل في تحميل القائمة");
+      const data = await res.json();
+      setSelectedShopMenu(data.menu_items || []);
+      setShopName(data.name || ""); // Keep shopName state for submission
+    } catch (error) {
+      toast.error(error.message);
+      setSelectedShopMenu([]);
+    } finally {
+      setIsMenuLoading(false);
+    }
+  };
+
+  const openItemSelectionModal = (participantId) => {
+    setEditingParticipant(participantId);
+    // FIX: Pre-fill the order modal with the participant's current items
+    const currentContribution = contributions.find(
+      (c) => c.id === participantId
+    );
+    setParticipantOrder(currentContribution?.items || []);
+    setIsItemModalOpen(true);
+  };
+
+  const handleItemSelect = (item) => {
+    setParticipantOrder((currentOrder) => [...currentOrder, item]);
+  };
+
+  const handleItemRemove = (itemIndexToRemove) => {
+    setParticipantOrder((currentOrder) =>
+      currentOrder.filter((_, index) => index !== itemIndexToRemove)
+    );
+  };
+
+  const confirmParticipantOrder = () => {
+    const total = participantOrder.reduce((sum, item) => sum + item.price, 0);
+
+    // FIX: Update contributions with the full items array
+    const updatedContributions = contributions.map((c) =>
+      c.id === editingParticipant
+        ? {
+            ...c,
+            amount: total > 0 ? total.toFixed(3) : "",
+            items: participantOrder,
+          }
+        : c
+    );
+    setContributions(updatedContributions);
+
+    const totalBill = updatedContributions.reduce(
+      (sum, c) => sum + (parseFloat(c.amount) || 0),
+      0
+    );
+    setBillAmount(totalBill > 0 ? totalBill.toFixed(3) : "");
+
+    setIsItemModalOpen(false);
+    setEditingParticipant(null);
+    setParticipantOrder([]);
+  };
+
+  const resetSplitBill = () => {
+    setSplitBill(false);
+    setBillDate({
+      startDate: new Date().toISOString(),
+      endDate: new Date().toISOString(),
+    });
+    setShopName("");
+    setBillAmount("");
+    setPayerId("");
+    // FIX: Reset contributions with items array
+    setContributions(
+      participants.map((p) => ({ id: p.id, amount: "", items: [] }))
+    );
+    setShowTaxInput(false);
+    setTaxRate("");
+    setTaxApplied(false);
+    // Reset new feature states
+    setAllShops([]);
+    setSelectedShopId("");
+    setSelectedShopMenu([]);
+    setIsItemModalOpen(false);
+    setEditingParticipant(null);
+    setParticipantOrder([]);
+  };
+  // END: Functions for the new feature
+
   const handleApplyTax = () => {
     const rate = parseFloat(taxRate);
     if (isNaN(rate) || rate < 0) {
@@ -953,12 +1575,41 @@ export default function App() {
     });
 
     setContributions(newContributions);
+    const totalBill = newContributions.reduce(
+      (sum, c) => sum + (parseFloat(c.amount) || 0),
+      0
+    );
+    setBillAmount(totalBill > 0 ? totalBill.toFixed(3) : "");
     setShowTaxInput(false);
     setTaxRate("");
+    setTaxApplied(true); // Lock editing after applying tax
   };
 
   const handleCardClick = (name) => {
     setFilterName((prev) => (prev === name ? "" : name));
+  };
+
+  const handleShopClick = async (shop, date) => {
+    if (shop === "إيداع في الحساب" || shop === "خصم نقدي من الحساب") {
+      return;
+    }
+
+    setBillDetails({ isOpen: true, loading: true, data: null });
+
+    try {
+      const res = await fetch(
+        `/api/bill-details?shop=${encodeURIComponent(shop)}&date=${date}`
+      );
+      if (!res.ok) {
+        throw new Error("Could not fetch bill details.");
+      }
+      const data = await res.json();
+      setBillDetails({ isOpen: true, loading: false, data: data });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load bill details.");
+      setBillDetails({ isOpen: false, loading: false, data: null });
+    }
   };
 
   const handleSplitBillSubmit = async () => {
@@ -971,7 +1622,8 @@ export default function App() {
         "يجب أن يكون إجمالي المدفوع من المشاركين مساوياً لإجمالي الفاتورة"
       );
     if (!payerId) return toast.error("الرجاء تحديد من قام بدفع الفاتورة");
-    const date = new Date(billDate.startDate).toISOString().split("T")[0];
+    if (totalPaid <= 0) return toast.error("لا يمكن تسجيل فاتورة فارغة");
+    const date = toYYYYMMDD(billDate.startDate);
     const payerName =
       participants.find((p) => String(p.id) === String(payerId))?.name || "";
     try {
@@ -1004,10 +1656,7 @@ export default function App() {
           <span className="text-green-600 font-bold">{billAmount} ريال</span>
         </span>
       );
-      setSplitBill(false);
-      setShopName("");
-      setBillAmount("");
-      setPayerId("");
+      resetSplitBill();
       await loadAllTx();
       await loadParticipants();
     } catch (err) {
@@ -1036,14 +1685,20 @@ export default function App() {
     await loadParticipants();
     await loadAllTx();
   };
+
   const handleCredit = async () => {
-    const date = new Date(creditDate.startDate).toISOString().split("T")[0];
+    const amount = parseFloat(creditAmount);
+    if (isNaN(amount) || amount <= 0) {
+      return toast.error("Please enter a valid positive amount.");
+    }
+
+    const date = toYYYYMMDD(creditDate.startDate);
     const participant = participants.find((p) => p.id === creditId);
     await fetch(`/api/participants/${creditId}/credit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        amount: parseFloat(creditAmount),
+        amount: amount,
         date,
         shop: "إيداع في الحساب",
       }),
@@ -1061,17 +1716,23 @@ export default function App() {
     setCreditId(null);
     setCreditAmount("");
     setCreditDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
+      startDate: new Date(),
+      endDate: new Date(),
     });
   };
+
   const handleDebit = async () => {
-    const date = new Date(debitDate.startDate).toISOString().split("T")[0];
+    const amount = parseFloat(debitAmount);
+    if (isNaN(amount) || amount <= 0) {
+      return toast.error("Please enter a valid positive amount.");
+    }
+
+    const date = toYYYYMMDD(debitDate.startDate);
     const participant = participants.find((p) => p.id === debitId);
     await fetch(`/api/participants/${debitId}/debit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: parseFloat(debitAmount), date }),
+      body: JSON.stringify({ amount: amount, date }),
     });
     await loadParticipants();
     await loadAllTx();
@@ -1085,8 +1746,8 @@ export default function App() {
     setDebitId(null);
     setDebitAmount("");
     setDebitDate({
-      startDate: new Date().toISOString(),
-      endDate: new Date().toISOString(),
+      startDate: new Date(),
+      endDate: new Date(),
     });
   };
   const handleDelete = async () => {
@@ -1106,13 +1767,11 @@ export default function App() {
     setDeletePassword("");
   };
   const handleFilterDateChange = (newValue) => {
+    setFilterDateValue(newValue);
     if (!newValue.startDate) {
       setFilterDate(null);
-      setFilterDateValue({ startDate: null, endDate: null });
     } else {
-      const selected = new Date(newValue.startDate).toISOString().split("T")[0];
-      setFilterDateValue({ startDate: selected, endDate: selected });
-      setFilterDate(selected);
+      setFilterDate(toYYYYMMDD(newValue.startDate));
     }
     setCurrentPage(1);
   };
@@ -1135,8 +1794,10 @@ export default function App() {
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-  const totalPositiveBalance = participants.reduce(
-    (sum, p) => sum + (p.balance > 0 ? p.balance : 0),
+
+  // UPDATED: Calculate totalOverallBalance including positive and negative balances
+  const totalOverallBalance = participants.reduce(
+    (sum, p) => sum + p.balance,
     0
   );
 
@@ -1152,7 +1813,7 @@ export default function App() {
     <>
       <div
         dir="rtl"
-        className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-10 px-4 el-messiri"
+        className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50 py-10 px-4"
       >
         <AnimatePresence mode="wait">
           {view === "main" ? (
@@ -1175,7 +1836,7 @@ export default function App() {
                   </button>
                   <button
                     className="bg-indigo-600 text-white px-5 py-2 rounded-xl hover:bg-indigo-700 shadow"
-                    onClick={() => setSplitBill(true)}
+                    onClick={openSplitBillModal}
                   >
                     🧾 تقسيم الفاتورة
                   </button>
@@ -1193,18 +1854,50 @@ export default function App() {
                     <Coffee size={20} />
                     قوائم الطعام
                   </button>
+                  <button
+                    className="bg-blue-600 text-white px-5 py-2 rounded-xl hover:bg-blue-700 shadow flex items-center gap-2"
+                    onClick={() => setView("dashboard")}
+                  >
+                    <BarChart3 size={20} />
+                    لوحة المعلومات
+                  </button>
+                  {/* NEW BUTTON FOR "جداول" - Uses import.meta.env.VITE_TABLES_APP_URL */}
+                  <button
+                    className="bg-teal-600 text-white px-5 py-2 rounded-xl hover:bg-teal-700 shadow flex items-center gap-2"
+                    onClick={() => {
+                      // Use Vite's native way to access environment variables Exposed at build time
+                      // Added a fallback in case the env var isn't set, though it should be by Docker.
+                      window.location.href =
+                        import.meta.env.VITE_TABLES_APP_URL ||
+                        "http://localhost:3001";
+                    }}
+                  >
+                    <Table size={20} />
+                    جداول
+                  </button>
                 </div>
                 <div className="flex justify-center mb-10">
                   <div className="bg-white p-6 rounded-xl shadow-lg w-72 text-center border-t-4 border-indigo-500">
                     <h2 className="text-lg font-bold text-gray-700 mb-2">
                       إجمالي المبلغ في الصندوق
                     </h2>
-                    <p className="text-2xl text-green-600 font-bold">
-                      {(totalPositiveBalance || 0).toFixed(3)}
+                    {/* UPDATED: Use totalOverallBalance and dynamic color */}
+                    <p
+                      className={`text-2xl font-bold ${
+                        totalOverallBalance >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      <FormattedAmount
+                        value={totalOverallBalance}
+                        mainSize="text-2xl"
+                        decimalSize="text-xl"
+                      />
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mb-12">
                   {participants.map((p) => (
                     <motion.div
@@ -1231,12 +1924,12 @@ export default function App() {
                           }`}
                         >
                           {" "}
-                          {(p.balance || 0).toFixed(3)}
+                          <FormattedAmount value={p.balance} />
                         </span>
                       </p>
                       <div className="flex justify-between items-center pt-2 border-t gap-2">
                         <button
-                          className="flex-1 bg-green-500 text-white px-2 py-1 rounded-md hover:bg-green-600 text-sm"
+                          className="flex-1 bg-green-400 text-white px-2 py-1 rounded-md hover:bg-green-600 text-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             setCreditId(p.id);
@@ -1245,7 +1938,7 @@ export default function App() {
                           💰 إيداع
                         </button>
                         <button
-                          className="flex-1 bg-red-500 text-white px-2 py-1 rounded-md hover:bg-red-600 text-sm"
+                          className="flex-1 bg-red-400 text-white px-2 py-1 rounded-md hover:bg-red-600 text-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDebitId(p.id);
@@ -1346,33 +2039,49 @@ export default function App() {
                             </td>
                           </tr>
                         ) : (
-                          paged.map((tx, i) => (
-                            <tr
-                              key={`${tx.id}-${i}`}
-                              className={`hover:bg-indigo-50 transition-colors duration-200 ${
-                                i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                              }`}
-                            >
-                              <td className="p-3 border-b">{tx.date}</td>
-                              <td className="p-3 border-b font-medium text-gray-800">
-                                {tx.name}
-                              </td>
-                              <td
-                                className={`p-3 border-b font-semibold ${
-                                  tx.amount < 0
-                                    ? "text-red-600"
-                                    : "text-green-600"
+                          paged.map((tx, i) => {
+                            const isClickableShop =
+                              tx.shop !== "إيداع في الحساب" &&
+                              tx.shop !== "خصم نقدي من الحساب";
+                            return (
+                              <tr
+                                key={`${tx.id}-${i}`}
+                                className={`hover:bg-indigo-50 transition-colors duration-200 ${
+                                  i % 2 === 0 ? "bg-white" : "bg-gray-50"
                                 }`}
                               >
-                                {tx.amount < 0
-                                  ? `- ${Math.abs(tx.amount || 0).toFixed(3)}`
-                                  : `+ ${(tx.amount || 0).toFixed(3)}`}
-                              </td>
-                              <td className="p-3 border-b text-gray-600">
-                                {tx.shop}
-                              </td>
-                            </tr>
-                          ))
+                                <td className="p-3 border-b">{tx.date}</td>
+                                <td className="p-3 border-b font-medium text-gray-800">
+                                  {tx.name}
+                                </td>
+                                <td
+                                  className={`p-3 border-b font-semibold ${
+                                    tx.amount < 0
+                                      ? "text-red-600"
+                                      : "text-green-600"
+                                  }`}
+                                >
+                                  {tx.amount < 0 ? `- ` : `+ `}
+                                  <FormattedAmount
+                                    value={Math.abs(tx.amount)}
+                                  />
+                                </td>
+                                <td
+                                  className={`p-3 border-b text-gray-600 ${
+                                    isClickableShop
+                                      ? "cursor-pointer hover:text-indigo-600 hover:font-semibold"
+                                      : ""
+                                  }`}
+                                  onClick={() =>
+                                    isClickableShop &&
+                                    handleShopClick(tx.shop, tx.date)
+                                  }
+                                >
+                                  {tx.shop}
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>
@@ -1407,7 +2116,8 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </div>
+              </div>{" "}
+              {/* This div closes the max-w-5xl mx-auto space-y-6 */}
               <AnimatePresence>
                 {adding && (
                   <motion.div
@@ -1451,13 +2161,20 @@ export default function App() {
               <AnimatePresence>
                 {splitBill && (
                   <motion.div
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 50 }}
-                    transition={{ duration: 0.3 }}
-                    className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center overflow-auto p-4"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+                    onClick={resetSplitBill}
                   >
-                    <div className="bg-white rounded-xl shadow-2xl p-6 w-[90%] max-w-3xl">
+                    <motion.div
+                      initial={{ y: 50, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: 50, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-white rounded-xl shadow-2xl p-6 w-[90%] max-w-3xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <h2 className="text-2xl font-bold text-indigo-700 mb-6 border-b pb-2">
                         🧾 تقسيم الفاتورة
                       </h2>
@@ -1478,22 +2195,35 @@ export default function App() {
                         </div>
                         <div>
                           <label className="block mb-1 text-sm font-medium text-gray-700">
-                            🏪 اسم المقهى
+                            🏪 اختر المقهى
                           </label>
-                          <input
-                            ref={splitBillShopNameRef}
-                            type="text"
-                            className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
-                            value={shopName}
-                            onChange={(e) => setShopName(e.target.value)}
-                          />
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded bg-white"
+                              value={selectedShopId}
+                              onChange={(e) =>
+                                handleShopSelectionChange(e.target.value)
+                              }
+                              disabled={isMenuLoading}
+                            >
+                              <option value="">-- اختر مقهى --</option>
+                              {allShops.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                            {isMenuLoading && (
+                              <Loader className="w-5 h-5 animate-spin text-indigo-500" />
+                            )}
+                          </div>
                         </div>
                         <div>
                           <label className="block mb-1 text-sm font-medium text-gray-700">
                             💸 اختر من قام بدفع الفاتورة
                           </label>
                           <select
-                            className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded"
+                            className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded bg-white"
                             value={payerId}
                             onChange={(e) => setPayerId(e.target.value)}
                           >
@@ -1513,68 +2243,90 @@ export default function App() {
                             type="number"
                             min="0"
                             step="0.001"
-                            className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            readOnly
+                            className="w-full border border-indigo-300 bg-gray-100 focus:ring-2 focus:ring-indigo-400 p-2 rounded [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             value={billAmount}
-                            onChange={(e) => setBillAmount(e.target.value)}
-                            onKeyDown={(e) =>
-                              e.key === "Enter" && handleSplitBillSubmit()
-                            }
+                            placeholder="الإجمالي يحسب تلقائياً"
                           />
                         </div>
                       </div>
                       <div className="mt-6 border-t pt-4">
-                         {!showTaxInput ? (
-                            <button onClick={() => setShowTaxInput(true)} className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1">
-                                <Percent size={16}/>
-                                إضافة ضريبة
+                        {!showTaxInput ? (
+                          <button
+                            onClick={() => setShowTaxInput(true)}
+                            className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            disabled={!billAmount || taxApplied}
+                          >
+                            <Percent size={16} />
+                            إضافة ضريبة
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                            <label className="text-sm font-medium">
+                              نسبة الضريبة:
+                            </label>
+                            <input
+                              ref={taxInputRef}
+                              type="number"
+                              value={taxRate}
+                              onChange={(e) => setTaxRate(e.target.value)}
+                              className="w-20 border-indigo-300 rounded-md p-1 focus:ring-2 focus:ring-indigo-400"
+                              placeholder="e.g., 5"
+                              onKeyDown={(e) =>
+                                e.key === "Enter" && handleApplyTax()
+                              }
+                            />
+                            <span>%</span>
+                            <button
+                              onClick={handleApplyTax}
+                              className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
+                            >
+                              تطبيق
                             </button>
-                         ) : (
-                            <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
-                                <label className="text-sm font-medium">
-                                  نسبة الضريبة:
-                                </label>
-                                <input
-                                    ref={taxInputRef}
-                                    type="number"
-                                    value={taxRate}
-                                    onChange={(e) => setTaxRate(e.target.value)}
-                                    className="w-20 border-indigo-300 rounded-md p-1 focus:ring-2 focus:ring-indigo-400"
-                                    placeholder="e.g., 5"
-                                    onKeyDown={(e) => e.key === 'Enter' && handleApplyTax()}
-                                />
-                                <span>%</span>
-                                <button onClick={handleApplyTax} className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700">تطبيق</button>
-                                <button onClick={() => setShowTaxInput(false)} className="text-gray-500 hover:text-gray-700"><X size={20}/></button>
-                            </div>
-                         )}
+                            <button
+                              onClick={() => setShowTaxInput(false)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div className="mt-4">
+                      <div
+                        className={`mt-4 transition-opacity ${
+                          isMenuLoading ? "opacity-50 pointer-events-none" : ""
+                        }`}
+                      >
                         <h3 className="text-lg font-semibold text-indigo-700 mb-3">
                           👥 المشاركون
                         </h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {contributions.map((c, idx) => {
                             const p = participants.find((p) => p.id === c.id);
                             return (
                               <div
                                 key={c.id}
-                                className="flex justify-between items-center border border-indigo-200 bg-indigo-50 rounded-lg px-4 py-2 shadow-sm"
+                                className="flex items-center gap-2 border border-indigo-200 bg-indigo-50 rounded-lg px-3 py-2 shadow-sm"
                               >
-                                <span className="font-medium text-gray-800">
+                                <span className="font-medium text-gray-800 flex-1 whitespace-nowrap overflow-hidden text-ellipsis">
                                   {p?.name}
                                 </span>
                                 <input
                                   type="number"
                                   min="0"
                                   step="0.001"
-                                  className="w-24 border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-1 rounded text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  readOnly
+                                  className="w-24 border border-indigo-300 bg-gray-100 p-1 rounded text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                   value={c.amount}
-                                  onChange={(e) => {
-                                    const updated = [...contributions];
-                                    updated[idx].amount = e.target.value;
-                                    setContributions(updated);
-                                  }}
+                                  placeholder="0.000"
                                 />
+                                <button
+                                  onClick={() => openItemSelectionModal(c.id)}
+                                  disabled={!selectedShopId || taxApplied}
+                                  className="bg-teal-500 text-white p-2 rounded-md hover:bg-teal-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                >
+                                  <ShoppingCart size={16} />
+                                </button>
                               </div>
                             );
                           })}
@@ -1583,7 +2335,7 @@ export default function App() {
                       <div className="flex justify-end gap-2 mt-6">
                         <button
                           className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
-                          onClick={() => setSplitBill(false)}
+                          onClick={resetSplitBill}
                         >
                           إلغاء
                         </button>
@@ -1594,10 +2346,133 @@ export default function App() {
                           💾 حفظ
                         </button>
                       </div>
-                    </div>
+                    </motion.div>
                   </motion.div>
                 )}
               </AnimatePresence>
+              {/* START: New Item Selection Modal */}
+              <AnimatePresence>
+                {isItemModalOpen && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
+                    onClick={() => setIsItemModalOpen(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="bg-white rounded-2xl shadow-xl w-full max-w-4xl h-[70vh] flex flex-col"
+                    >
+                      <div className="p-4 border-b">
+                        <h2 className="text-2xl font-bold text-teal-700">
+                          اختر طلبات لـ{" "}
+                          {
+                            participants.find(
+                              (p) => p.id === editingParticipant
+                            )?.name
+                          }
+                        </h2>
+                      </div>
+                      <div className="flex-grow flex flex-col md:flex-row overflow-hidden">
+                        {/* Menu Items List */}
+                        <div className="w-full md:w-1/2 p-4 overflow-y-auto border-r">
+                          <h3 className="text-lg font-semibold mb-3">
+                            القائمة
+                          </h3>
+                          <div className="space-y-2">
+                            {isMenuLoading ? (
+                              <div className="flex justify-center items-center h-full">
+                                <Loader className="animate-spin text-teal-500" />
+                              </div>
+                            ) : selectedShopMenu.length > 0 ? (
+                              selectedShopMenu.map((item) => (
+                                <div
+                                  key={item.id}
+                                  onClick={() => handleItemSelect(item)}
+                                  className="flex justify-between items-center p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-teal-100 border border-gray-200"
+                                >
+                                  <span className="text-gray-800">
+                                    {item.item_name}
+                                  </span>
+                                  <span className="font-semibold text-teal-600">
+                                    {(item.price || 0).toFixed(3)}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <p className="text-gray-500">
+                                لا توجد أصناف في هذا المقهى.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Selected Items (Cart) */}
+                        <div className="w-full md:w-1/2 p-4 bg-gray-50 flex flex-col overflow-y-auto">
+                          <h3 className="text-lg font-semibold mb-3">
+                            الطلبات المختارة
+                          </h3>
+                          <div className="flex-grow space-y-2">
+                            {participantOrder.length === 0 ? (
+                              <p className="text-center text-gray-500 mt-10">
+                                لم يتم اختيار أي طلب بعد.
+                              </p>
+                            ) : (
+                              participantOrder.map((item, index) => (
+                                <div
+                                  key={index}
+                                  className="flex justify-between items-center p-2 bg-white rounded-lg shadow-sm"
+                                >
+                                  <span>{item.item_name}</span>
+                                  <div className="flex items-center gap-3">
+                                    <span className="font-mono text-gray-700">
+                                      {(item.price || 0).toFixed(3)}
+                                    </span>
+                                    <button
+                                      onClick={() => handleItemRemove(index)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <div className="border-t pt-3 mt-3">
+                            <div className="flex justify-between items-center text-xl font-bold">
+                              <span>الإجمالي:</span>
+                              <span className="text-green-600">
+                                {participantOrder
+                                  .reduce((sum, item) => sum + item.price, 0)
+                                  .toFixed(3)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-4 border-t flex justify-end gap-3">
+                        <button
+                          onClick={() => setIsItemModalOpen(false)}
+                          className="bg-gray-200 text-gray-800 px-5 py-2 rounded-lg hover:bg-gray-300"
+                        >
+                          إلغاء
+                        </button>
+                        <button
+                          onClick={confirmParticipantOrder}
+                          className="bg-teal-600 text-white px-5 py-2 rounded-lg hover:bg-teal-700"
+                        >
+                          تأكيد الطلبات
+                        </button>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {/* END: New Item Selection Modal */}
               <AnimatePresence>
                 {creditId && (
                   <motion.div
@@ -1750,11 +2625,99 @@ export default function App() {
                   </motion.div>
                 )}
               </AnimatePresence>
+              <AnimatePresence>
+                {billDetails.isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
+                    onClick={() =>
+                      setBillDetails({
+                        isOpen: false,
+                        data: null,
+                        loading: false,
+                      })
+                    }
+                  >
+                    <motion.div
+                      initial={{ y: 50, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: 50, opacity: 0 }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl border-t-4 border-indigo-500"
+                    >
+                      {billDetails.loading ? (
+                        <div className="flex justify-center items-center h-48">
+                          <Loader className="w-12 h-12 text-indigo-600 animate-spin" />
+                        </div>
+                      ) : (
+                        billDetails.data && (
+                          <div className="space-y-4">
+                            <div className="text-center">
+                              <h2 className="text-2xl font-bold text-indigo-800">
+                                {billDetails.data.shop}
+                              </h2>
+                            </div>
+                            <div className="flex justify-between items-center text-gray-600 bg-gray-50 p-3 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <Calendar size={20} />
+                                <span>{billDetails.data.date}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Wallet size={20} />
+                                <span className="font-bold text-indigo-600">
+                                  <FormattedAmount
+                                    value={billDetails.data.totalAmount}
+                                  />
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="border-t pt-4">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                                <User size={20} /> قام بالدفع:
+                              </h3>
+                              <p className="bg-green-100 text-green-800 font-bold px-4 py-2 rounded-lg">
+                                {billDetails.data.payer}
+                              </p>
+                            </div>
+
+                            <div className="border-t pt-4">
+                              <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                                <Users size={20} />
+                                المشاركون في الفاتورة:
+                              </h3>
+                              <ul className="space-y-2">
+                                {billDetails.data.participants.map((p) => (
+                                  <li
+                                    key={p.name}
+                                    className="flex justify-between items-center bg-red-50 p-2 rounded-lg"
+                                  >
+                                    <span className="text-red-800">
+                                      {p.name}
+                                    </span>
+                                    <span className="font-semibold text-red-600">
+                                      <FormattedAmount value={p.amount} />
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ) : view === "purchases" ? (
             <PurchasesPage key="purchases" onBack={() => setView("main")} />
-          ) : (
+          ) : view === "menus" ? (
             <MenusPage key="menus" onBack={() => setView("main")} />
+          ) : (
+            <DashboardPage key="dashboard" onBack={() => setView("main")} />
           )}
         </AnimatePresence>
       </div>

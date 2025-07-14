@@ -4,19 +4,22 @@ module.exports = {
     "./src/**/*.{js,jsx}",
     "./node_modules/react-tailwindcss-datepicker/dist/index.esm.js",
   ],
-  extend: {
-    fontFamily: {
-      tajawal: ["Tajawal", "sans-serif"],
-      tajawal: ["Zain", "sans-serif"],
-      tajawal: ["El Messiri", "sans-serif"],
-    },
-    animation: {
-      "fade-in": "fadeIn 0.3s ease-out",
-    },
-    keyframes: {
-      fadeIn: {
-        "0%": { opacity: 0 },
-        "100%": { opacity: 1 },
+  theme: {
+    extend: {
+      fontFamily: {
+        // Corrected font family keys
+        tajawal: ["Tajawal", "sans-serif"],
+        zain: ["Zain", "sans-serif"],
+        elmessiri: ["El Messiri", "sans-serif"],
+      },
+      animation: {
+        "fade-in": "fadeIn 0.3s ease-out",
+      },
+      keyframes: {
+        fadeIn: {
+          "0%": { opacity: 0 },
+          "100%": { opacity: 1 },
+        },
       },
     },
   },
