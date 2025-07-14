@@ -4,8 +4,12 @@ import { XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import FormattedAmount from "../FormattedAmount.jsx";
 import { toYYYYMMDD } from "../../utils/dateUtils.js";
 
-const TransactionsLog = ({ transactions, onShopClick }) => {
-  const [filterName, setFilterName] = useState("");
+const TransactionsLog = ({
+  transactions,
+  onShopClick,
+  filterName,
+  setFilterName,
+}) => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterDate, setFilterDate] = useState(null);
@@ -20,19 +24,19 @@ const TransactionsLog = ({ transactions, onShopClick }) => {
     setCurrentPage(1);
   };
 
-  const filtered = useMemo(
-    () =>
-      transactions.filter((tx) => {
-        if (
-          filterName &&
-          !tx.name.toLowerCase().includes(filterName.toLowerCase())
-        )
-          return false;
-        if (filterDate && tx.date !== filterDate) return false;
-        return true;
-      }),
-    [transactions, filterName, filterDate]
-  );
+  const filtered = useMemo(() => {
+    // Reset to page 1 whenever filter changes
+    setCurrentPage(1);
+    return transactions.filter((tx) => {
+      if (
+        filterName &&
+        !tx.name.toLowerCase().includes(filterName.toLowerCase())
+      )
+        return false;
+      if (filterDate && tx.date !== filterDate) return false;
+      return true;
+    });
+  }, [transactions, filterName, filterDate]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const paged = filtered.slice(

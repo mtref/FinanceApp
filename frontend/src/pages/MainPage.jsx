@@ -15,6 +15,9 @@ const MainPage = ({ setView }) => {
   const [allTx, setAllTx] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Filter State
+  const [filterName, setFilterName] = useState("");
+
   // Modal Visibility State
   const [adding, setAdding] = useState(false);
   const [splitBill, setSplitBill] = useState(false);
@@ -95,6 +98,10 @@ const MainPage = ({ setView }) => {
   }, []);
 
   // --- Handlers ---
+  const handleCardClick = (name) => {
+    setFilterName((prev) => (prev === name ? "" : name));
+  };
+
   const addParticipant = async () => {
     if (!name.trim()) return;
     const trimmedName = name.trim();
@@ -486,14 +493,19 @@ const MainPage = ({ setView }) => {
             <ParticipantCard
               key={p.id}
               participant={p}
-              onCardClick={() => {}}
+              onCardClick={handleCardClick}
               onCreditClick={setCreditId}
               onDebitClick={setDebitId}
               onDeleteClick={setDeleteId}
             />
           ))}
         </div>
-        <TransactionsLog transactions={allTx} onShopClick={handleShopClick} />
+        <TransactionsLog
+          transactions={allTx}
+          onShopClick={handleShopClick}
+          filterName={filterName}
+          setFilterName={setFilterName}
+        />
       </div>
       <MainPageModals
         modalState={{
