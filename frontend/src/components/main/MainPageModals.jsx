@@ -13,6 +13,7 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
+  Plus,
 } from "lucide-react";
 import FormattedAmount from "../FormattedAmount.jsx";
 
@@ -24,9 +25,17 @@ const MainPageModals = ({
   splitBillData,
   itemSelectionData,
   billDetails,
+  onShopAdded,
 }) => {
-  const { adding, splitBill, creditId, debitId, deleteId, isItemModalOpen } =
-    modalState;
+  const {
+    adding,
+    splitBill,
+    creditId,
+    debitId,
+    deleteId,
+    isItemModalOpen,
+    isAddingShop,
+  } = modalState;
 
   const {
     setAdding,
@@ -47,6 +56,9 @@ const MainPageModals = ({
     handleItemSelect,
     handleItemRemove,
     toggleParticipantExpansion,
+    setAddingShop,
+    handleAddShop,
+    handleAddNewItem,
   } = handlers;
 
   const {
@@ -80,21 +92,30 @@ const MainPageModals = ({
     contributions,
   } = splitBillData;
 
-  const { editingParticipant, participantOrder, selectedShopMenu } =
-    itemSelectionData;
+  const {
+    editingParticipant,
+    participantOrder,
+    selectedShopMenu,
+    newItemName,
+    setNewItemName,
+    newItemPrice,
+    setNewItemPrice,
+  } = itemSelectionData;
 
   const addParticipantInputRef = useRef(null);
   const creditAmountRef = useRef(null);
   const debitAmountRef = useRef(null);
   const deletePasswordRef = useRef(null);
   const taxInputRef = useRef(null);
+  const newShopInputRef = useRef(null);
 
   useEffect(() => {
     if (adding) setTimeout(() => addParticipantInputRef.current?.focus(), 100);
     if (creditId) setTimeout(() => creditAmountRef.current?.focus(), 100);
     if (debitId) setTimeout(() => debitAmountRef.current?.focus(), 100);
     if (deleteId) setTimeout(() => deletePasswordRef.current?.focus(), 100);
-  }, [adding, creditId, debitId, deleteId]);
+    if (isAddingShop) setTimeout(() => newShopInputRef.current?.focus(), 100);
+  }, [adding, creditId, debitId, deleteId, isAddingShop]);
 
   useEffect(() => {
     if (showTaxInput) {
@@ -206,6 +227,12 @@ const MainPageModals = ({
                   {isMenuLoading && (
                     <Loader className="w-5 h-5 animate-spin text-indigo-500" />
                   )}
+                  <button
+                    onClick={() => setAddingShop(true)}
+                    className="bg-indigo-500 text-white p-2 rounded hover:bg-indigo-600"
+                  >
+                    <Plus size={16} />
+                  </button>
                 </div>
               </div>
               <div>
@@ -357,9 +384,9 @@ const MainPageModals = ({
               </h2>
             </div>
             <div className="flex-grow flex flex-col md:flex-row overflow-hidden">
-              <div className="w-full md:w-1/2 p-4 overflow-y-auto border-r">
+              <div className="w-full md:w-1/2 p-4 overflow-y-auto border-r flex flex-col">
                 <h3 className="text-lg font-semibold mb-3">القائمة</h3>
-                <div className="space-y-2">
+                <div className="flex-grow space-y-2">
                   {isMenuLoading ? (
                     <div className="flex justify-center items-center h-full">
                       <Loader className="animate-spin text-teal-500" />
@@ -373,15 +400,42 @@ const MainPageModals = ({
                       >
                         <span className="text-gray-800">{item.item_name}</span>
                         <span className="font-semibold text-teal-600">
-                          {(item.price || 0).toFixed(3)}
+                          <FormattedAmount value={item.price} />
                         </span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-500">
+                    <p className="text-gray-500 text-center mt-4">
                       لا توجد أصناف في هذا المقهى.
                     </p>
                   )}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <h4 className="font-semibold mb-2 text-gray-700">
+                    إضافة صنف جديد
+                  </h4>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="اسم الصنف"
+                      value={newItemName}
+                      onChange={(e) => setNewItemName(e.target.value)}
+                      className="flex-grow border border-gray-300 p-2 rounded-md focus:ring-2 focus:ring-teal-400"
+                    />
+                    <input
+                      type="number"
+                      placeholder="السعر"
+                      value={newItemPrice}
+                      onChange={(e) => setNewItemPrice(e.target.value)}
+                      className="w-24 border border-gray-300 p-2 rounded-md focus:ring-2 focus:ring-teal-400"
+                    />
+                    <button
+                      onClick={handleAddNewItem}
+                      className="bg-teal-500 text-white px-4 py-2 rounded-md hover:bg-teal-600"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="w-full md:w-1/2 p-4 bg-gray-50 flex flex-col overflow-y-auto">
@@ -723,6 +777,59 @@ const MainPageModals = ({
                 </div>
               )
             )}
+          </motion.div>
+        </motion.div>
+      )}
+      {isAddingShop && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-[101] p-4"
+          onClick={() => setAddingShop(false)}
+        >
+          <motion.div
+            initial={{ y: 50, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 50, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl p-6 w-96 shadow-2xl border-t-4 border-indigo-500"
+          >
+            <h2 className="text-2xl font-bold text-indigo-600 mb-4 border-b pb-2">
+              🏪 إضافة مقهى جديد
+            </h2>
+            <input
+              ref={newShopInputRef}
+              type="text"
+              className="w-full border border-indigo-300 focus:ring-2 focus:ring-indigo-400 p-2 rounded mb-4"
+              placeholder="اكتب اسم المقهى"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleAddShop(e.target.value);
+                  e.target.value = "";
+                }
+              }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
+                onClick={() => setAddingShop(false)}
+              >
+                إلغاء
+              </button>
+              <button
+                className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                onClick={() => {
+                  const input = newShopInputRef.current;
+                  if (input.value) {
+                    handleAddShop(input.value);
+                    input.value = "";
+                  }
+                }}
+              >
+                إضافة مقهى
+              </button>
+            </div>
           </motion.div>
         </motion.div>
       )}

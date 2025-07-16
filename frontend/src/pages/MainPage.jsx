@@ -26,6 +26,7 @@ const MainPage = ({ setView, currentUser }) => {
   const [debitId, setDebitId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [isAddingShop, setAddingShop] = useState(false);
   const [billDetails, setBillDetails] = useState({
     isOpen: false,
     loading: false,
@@ -67,6 +68,8 @@ const MainPage = ({ setView, currentUser }) => {
   const [isMenuLoading, setIsMenuLoading] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState(null);
   const [participantOrder, setParticipantOrder] = useState([]);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemPrice, setNewItemPrice] = useState("");
 
   // --- Data Loading ---
   const loadParticipants = async () => {
@@ -225,6 +228,26 @@ const MainPage = ({ setView, currentUser }) => {
       setAllShops([]);
     }
     setSplitBill(true);
+  };
+
+  const handleAddShop = async (shopName) => {
+    if (!shopName.trim()) return;
+    try {
+      const res = await fetch("/api/menus/shops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: shopName.trim() }),
+      });
+      if (!res.ok) throw new Error("فشل في إضافة المقهى");
+      const newShop = await res.json();
+      toast.success(`تمت إضافة "${newShop.name}" بنجاح`);
+      setAllShops((prev) => [...prev, newShop]);
+      setSelectedShopId(newShop.id);
+      handleShopSelectionChange(newShop.id);
+      setAddingShop(false);
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const resetSplitBill = () => {
@@ -394,6 +417,33 @@ const MainPage = ({ setView, currentUser }) => {
     setParticipantOrder([]);
   };
 
+  const handleAddNewItem = async () => {
+    if (!newItemName.trim() || !newItemPrice.trim() || !selectedShopId) {
+      toast.error("الرجاء إدخال اسم وسعر الصنف");
+      return;
+    }
+    const price = parseFloat(newItemPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error("الرجاء إدخال سعر صحيح");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/menus/shops/${selectedShopId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ item_name: newItemName.trim(), price }),
+      });
+      if (!res.ok) throw new Error("فشل في إضافة الصنف");
+      const newItem = await res.json();
+      toast.success(`تمت إضافة "${newItem.item_name}" بنجاح`);
+      setSelectedShopMenu((prev) => [...prev, newItem]);
+      setNewItemName("");
+      setNewItemPrice("");
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
   const toggleParticipantExpansion = (name) => {
     setExpandedParticipants((prev) => ({
       ...prev,
@@ -524,6 +574,7 @@ const MainPage = ({ setView, currentUser }) => {
           debitId,
           deleteId,
           isItemModalOpen,
+          isAddingShop,
           expandedParticipants,
           formState: {
             name,
@@ -561,6 +612,9 @@ const MainPage = ({ setView, currentUser }) => {
           handleItemSelect,
           handleItemRemove,
           toggleParticipantExpansion,
+          setAddingShop,
+          handleAddShop,
+          handleAddNewItem,
         }}
         participants={participants}
         allShops={allShops}
@@ -583,6 +637,10 @@ const MainPage = ({ setView, currentUser }) => {
           editingParticipant,
           participantOrder,
           selectedShopMenu,
+          newItemName,
+          setNewItemName,
+          newItemPrice,
+          setNewItemPrice,
         }}
         billDetails={billDetails}
       />
