@@ -240,44 +240,6 @@ const MainPageModals = ({
                 />
               </div>
             </div>
-            <div className="mt-6 border-t pt-4">
-              {!showTaxInput ? (
-                <button
-                  onClick={() => setShowTaxInput(true)}
-                  className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 disabled:text-gray-400 disabled:cursor-not-allowed"
-                  disabled={!billAmount || taxApplied}
-                >
-                  <Percent size={16} />
-                  إضافة ضريبة
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
-                  <label className="text-sm font-medium">نسبة الضريبة:</label>
-                  <input
-                    ref={taxInputRef}
-                    type="number"
-                    value={taxRate}
-                    onChange={(e) => setTaxRate(e.target.value)}
-                    className="w-20 border-indigo-300 rounded-md p-1 focus:ring-2 focus:ring-indigo-400"
-                    placeholder="e.g., 5"
-                    onKeyDown={(e) => e.key === "Enter" && handleApplyTax()}
-                  />
-                  <span>%</span>
-                  <button
-                    onClick={handleApplyTax}
-                    className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
-                  >
-                    تطبيق
-                  </button>
-                  <button
-                    onClick={() => setShowTaxInput(false)}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    <X size={20} />
-                  </button>
-                </div>
-              )}
-            </div>
             <div
               className={`mt-4 transition-opacity ${
                 isMenuLoading ? "opacity-50 pointer-events-none" : ""
@@ -316,6 +278,44 @@ const MainPageModals = ({
                     </div>
                   );
                 })}
+              </div>
+              <div className="mt-6 border-t pt-4 flex justify-center">
+                {!showTaxInput ? (
+                  <button
+                    onClick={() => setShowTaxInput(true)}
+                    className="bg-indigo-500 text-white py-2 px-4 rounded-md hover:bg-indigo-600 font-semibold flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={!billAmount || taxApplied}
+                  >
+                    <Percent size={16} />
+                    إضافة ضريبة
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200">
+                    <label className="text-sm font-medium">نسبة الضريبة:</label>
+                    <input
+                      ref={taxInputRef}
+                      type="number"
+                      value={taxRate}
+                      onChange={(e) => setTaxRate(e.target.value)}
+                      className="w-20 border-indigo-300 rounded-md p-1 focus:ring-2 focus:ring-indigo-400"
+                      placeholder="e.g., 5"
+                      onKeyDown={(e) => e.key === "Enter" && handleApplyTax()}
+                    />
+                    <span>%</span>
+                    <button
+                      onClick={handleApplyTax}
+                      className="bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
+                    >
+                      تطبيق
+                    </button>
+                    <button
+                      onClick={() => setShowTaxInput(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
